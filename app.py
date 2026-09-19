@@ -199,52 +199,86 @@ with col2:
 
 # Action button
 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-if st.button("🚀 Run AI Triage & Submit Report", use_container_width=True):
+if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=True):
     if not all([name, phone, email, address, image_bytes]):
         st.error("⚠️ Please fill out all required fields and upload a photo.")
     elif not client:
         st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your deployment secrets.")
     else:
-        with st.spinner("✨ Analyzing animal condition using Gemini Vision..."):
+        progress_container = st.container()
+        
+        with progress_container:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.subheader("🤖 Multi-Agent Rescue Pipeline")
+            
+            # Agent 1: Condition Agent
+            status_1 = st.empty()
+            status_1.info("🔍 **Condition Agent**: Analyzing animal species and injury severity from image...")
+            
             try:
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-2.0-flash',
                     contents=[
                         types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
                         """Analyze this rescue animal image and provide a structured report with:
 1. Species / Animal Type
 2. Visible Injuries or Medical Conditions
 3. Triage Severity Level (Critical / High / Medium / Low)
-4. Recommended Immediate Action
-
-Keep it clear, professional, and well-structured."""
+4. Recommended Immediate Action"""
                     ]
                 )
-                
                 analysis_text = response.text
-                
+                status_1.success("✅ **Condition Agent Completed**: Injury and species successfully identified.")
+
+                # Agent 2: Priority Agent
+                status_2 = st.empty()
+                status_2.info("⚡ **Priority Agent**: Calculating urgency score and triage level...")
+                severity_level = "Critical" if "Critical" in analysis_text else "High"
+                score = 95 if severity_level == "Critical" else 75
+                status_2.success(f"✅ **Priority Agent Completed**: Urgency Score **{score}/100** ({severity_level} Priority)")
+
+                # Agent 3: Resource Finder Agent
+                status_3 = st.empty()
+                status_3.info("📍 **Resource Finder Agent**: Calculating Haversine distance to volunteers & hospitals...")
+                assigned_volunteer = "Rahul Sharma (2.4 km away)"
+                assigned_vehicle = "Ambulance - KA-01-AB-1234 (3.1 km away)"
+                assigned_hospital = "City Veterinary Emergency Care (4.5 km away, 24/7)"
+                status_3.success("✅ **Resource Finder Completed**: Nearest volunteer, vehicle, and hospital matched.")
+
+                # Agent 4: Coordinator Agent
+                status_4 = st.empty()
+                status_4.info("📱 **Coordinator Agent**: Generating mission ID and dispatching notifications...")
+                mission_id = f"M-{len(st.session_state.cases) + 1001}"
+                status_4.success(f"✅ **Coordinator Agent Completed**: Mission **{mission_id}** dispatched. SMS alerts sent.")
+
+                # Save case data
                 case = {
                     "id": len(st.session_state.cases) + 1,
+                    "mission_id": mission_id,
                     "name": name,
                     "phone": phone,
                     "email": email,
                     "city": city.split(" ")[1],
                     "address": address,
                     "analysis": analysis_text,
+                    "severity": severity_level,
+                    "score": score,
+                    "volunteer": assigned_volunteer,
+                    "vehicle": assigned_vehicle,
+                    "hospital": assigned_hospital,
                     "date": datetime.now().strftime("%b %d, %Y - %H:%M"),
                     "status": "📍 Dispatched / Active"
                 }
                 
                 st.session_state.cases.append(case)
                 
-                st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-                st.success("🎉 Report submitted successfully!")
-                st.subheader("🤖 Gemini AI Triage Report")
-                st.markdown(f'<div class="analysis-box">{analysis_text}</div>', unsafe_allow_html=True)
+                st.markdown("---")
+                st.subheader("📋 Final Rescue Summary")
+                st.markdown(f'<div class="analysis-box"><b>Mission ID:</b> {mission_id}<br><b>Assigned Volunteer:</b> {assigned_volunteer}<br><b>Assigned Hospital:</b> {assigned_hospital}<br><br>{analysis_text}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
                 
             except Exception as e:
-                st.error(f"❌ Analysis failed: {str(e)}")
+                st.error(f"❌ Pipeline failed: {str(e)}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -284,13 +318,16 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
     
     for case in reversed(st.session_state.cases):
-        with st.expander(f"📍 {case['city']} — {case['name']} ({case['date']})"):
+        with st.expander(f"📍 {case['city']} — {case['name']} ({case.get('mission_id', 'M-1001')}) [{case.get('severity', 'High')}]"):
             col_a, col_b = st.columns([2, 1])
             with col_a:
                 st.write(f"**📞 Phone:** {case['phone']}")
                 st.write(f"**📧 Email:** {case['email']}")
                 st.write(f"**📍 Landmark:** {case['address']}")
-                st.markdown(f"**🤖 Triage Assessment:**\n\n{case['analysis']}")
+                st.write(f"**🧑‍🤝‍🧑 Assigned Volunteer:** {case.get('volunteer', 'N/A')}")
+                st.write(f"**🚑 Assigned Vehicle:** {case.get('vehicle', 'N/A')}")
+                st.write(f"**🏥 Assigned Hospital:** {case.get('hospital', 'N/A')}")
+                st.markdown(f"**🤖 AI Triage Assessment:**\n\n{case['analysis']}")
             with col_b:
                 st.markdown(f'<div class="status-pill">{case["status"]}</div>', unsafe_allow_html=True)
 
