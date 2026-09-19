@@ -244,28 +244,48 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 analysis_text = response.text
                 time.sleep(0.4) # Aesthetic pacing for multi-agent simulation
 
+                # 🛡️ Check if Gemini abstained (no animal found)
+                analysis_lower = analysis_text.lower()
+                is_valid_animal = not any(keyword in analysis_lower for keyword in [
+                    "none detected", "no animal", "not applicable", "n/a (no animal"
+                ])
+
                 # Step 2: Priority Agent
-                status_text.info("⚡ **[2/4] Priority Agent**: Computing urgency score and triage triage level...")
+                status_text.info("⚡ **[2/4] Priority Agent**: Computing urgency score and triage level...")
                 p_bar.progress(50)
-                severity_level = "Critical" if "Critical" in analysis_text else "High"
-                score = 95 if severity_level == "Critical" else 75
+                
+                if is_valid_animal:
+                    severity_level = "Critical" if "Critical" in analysis_text else "High"
+                    score = 95 if severity_level == "Critical" else 75
+                else:
+                    severity_level = "N/A"
+                    score = 0
                 time.sleep(0.4)
 
                 # Step 3: Resource Finder Agent
                 status_text.info("📍 **[3/4] Resource Finder Agent**: Running Haversine geo-matching for volunteers & hospitals...")
                 p_bar.progress(75)
-                assigned_volunteer = "Rahul Sharma (2.4 km away)"
-                assigned_vehicle = "Ambulance - KA-01-AB-1234 (3.1 km away)"
-                assigned_hospital = "City Veterinary Emergency Care (4.5 km away, 24/7)"
+                
+                if is_valid_animal:
+                    assigned_volunteer = "Rahul Sharma (2.4 km away)"
+                    assigned_vehicle = "Ambulance - KA-01-AB-1234 (3.1 km away)"
+                    assigned_hospital = "City Veterinary Emergency Care (4.5 km away, 24/7)"
+                else:
+                    assigned_volunteer = "None (Abstained - No animal detected)"
+                    assigned_vehicle = "None"
+                    assigned_hospital = "None"
                 time.sleep(0.4)
 
                 # Step 4: Coordinator Agent
                 status_text.info("📱 **[4/4] Coordinator Agent**: Allocating mission ID and dispatching automated alerts...")
                 p_bar.progress(100)
-                mission_id = f"M-{len(st.session_state.cases) + 1001}"
+                mission_id = f"M-{len(st.session_state.cases) + 1001}" if is_valid_animal else "INVALID-SUBMISSION"
                 time.sleep(0.3)
                 
-                status_text.success("🎉 **All Multi-Agents Executed Successfully!** Mission Dispatched.")
+                if is_valid_animal:
+                    status_text.success("🎉 **All Multi-Agents Executed Successfully!** Mission Dispatched.")
+                else:
+                    status_text.warning("⚠️ **Abstention Triggered**: No animal detected. Rescue dispatch skipped.")
 
                 # Save case data
                 case = {
@@ -283,7 +303,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     "vehicle": assigned_vehicle,
                     "hospital": assigned_hospital,
                     "date": datetime.now().strftime("%b %d, %Y - %H:%M"),
-                    "status": "📍 Dispatched / Active"
+                    "status": "📍 Dispatched / Active" if is_valid_animal else "🚫 Abstained / Cancelled"
                 }
                 
                 st.session_state.cases.append(case)
