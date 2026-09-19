@@ -10,8 +10,6 @@ import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-import requests
-from functools import wraps
 import threading
 
 # Import agents
@@ -44,11 +42,9 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
-
 def allowed_file(filename):
     """Check if file has allowed extension"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -58,7 +54,6 @@ def health_check():
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'version': '1.0.0'
     }), 200
-
 
 @app.route('/api/cases/create', methods=['POST'])
 def create_case():
@@ -146,7 +141,6 @@ def create_case():
         print(f"Error creating case: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/cases/<case_id>', methods=['GET'])
 def get_case(case_id):
     """Get case details with agent progress"""
@@ -158,7 +152,6 @@ def get_case(case_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/cases/active', methods=['GET'])
 def get_active_cases():
     """Get all active cases"""
@@ -167,7 +160,6 @@ def get_active_cases():
         return jsonify({'cases': cases}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/cases/<case_id>/status', methods=['PUT'])
 def update_case_status(case_id):
@@ -179,7 +171,6 @@ def update_case_status(case_id):
         return jsonify({'status': 'updated'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/cases/<case_id>/agent-status', methods=['PUT'])
 def update_agent_status(case_id):
@@ -195,7 +186,6 @@ def update_agent_status(case_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 def process_case_agents(case_id, case, photo_path):
     """
     Process case through agent pipeline
@@ -208,6 +198,15 @@ def process_case_agents(case_id, case, photo_path):
         db.update_agent_status(case_id, 'condition', 'completed', condition_result)
         case['agents']['condition'] = {'status': 'completed', 'result': condition_result}
         
+        # Check for Abstention (Non-animal detection)
+        cond_text = str(condition_result).lower()
+        is_abstained = "none detected" in cond_text or "no animal" in cond_text or "not applicable" in cond_text
+        
+        if is_abstained:
+            print(f"[Case {case_id}] ⚠️ Abstention triggered. Stopping rescue dispatch pipeline.")
+            db.update_case_status(case_id, 'abstained')
+            return
+
         # Step 2: Priority Agent
         print(f"[Case {case_id}] Running Priority Agent...")
         priority_result = priority_agent.assess(condition_result)
@@ -219,8 +218,8 @@ def process_case_agents(case_id, case, photo_path):
         resource_result = resource_finder.match_resources(
             latitude=case['latitude'],
             longitude=case['longitude'],
-            animal_species=condition_result.get('species'),
-            injury_severity=condition_result.get('severity')
+            animal_species=condition_result.get('species', 'dog'),
+            injury_severity=condition_result.get('severity', 'high')
         )
         db.update_agent_status(case_id, 'resource', 'completed', resource_result)
         case['agents']['resource'] = {'status': 'completed', 'result': resource_result}
@@ -229,9 +228,9 @@ def process_case_agents(case_id, case, photo_path):
         print(f"[Case {case_id}] Running Coordinator Agent...")
         coordinator_result = coordinator.assign_mission(
             case_id=case_id,
-            volunteer_id=resource_result.get('volunteer', {}).get('id'),
-            vehicle_id=resource_result.get('vehicle', {}).get('id'),
-            hospital_id=resource_result.get('hospital', {}).get('id'),
+            volunteer_id=resource_result.get('volunteer', {}).get('id') if resource_result.get('volunteer') else None,
+            vehicle_id=resource_result.get('vehicle', {}).get('id') if resource_result.get('vehicle') else None,
+            hospital_id=resource_result.get('hospital', {}).get('id') if resource_result.get('hospital') else None,
             case_data=case
         )
         db.update_agent_status(case_id, 'coordinator', 'completed', coordinator_result)
@@ -246,7 +245,6 @@ def process_case_agents(case_id, case, photo_path):
     except Exception as e:
         print(f"[Case {case_id}] ❌ Error processing case: {str(e)}")
         db.update_case_status(case_id, 'error')
-
 
 @app.route('/api/volunteers/nearest', methods=['POST'])
 def get_nearest_volunteers():
@@ -263,7 +261,6 @@ def get_nearest_volunteers():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/vehicles/nearest', methods=['POST'])
 def get_nearest_vehicles():
     """Find nearest available vehicles"""
@@ -278,7 +275,6 @@ def get_nearest_vehicles():
         return jsonify({'vehicles': vehicles}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/hospitals/nearest', methods=['POST'])
 def get_nearest_hospitals():
@@ -296,7 +292,6 @@ def get_nearest_hospitals():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
     """Get system analytics"""
@@ -306,19 +301,15 @@ def get_analytics():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Endpoint not found'}), 404
-
 
 @app.errorhandler(500)
 def internal_error(e):
     return jsonify({'error': 'Internal server error'}), 500
 
-
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
     print(f"🚀 Starting Pet Rescue API Server on port {port}...")
     app.run(debug=False, host='0.0.0.0', port=port)
-
