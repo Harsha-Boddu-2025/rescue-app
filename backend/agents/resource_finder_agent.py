@@ -18,7 +18,7 @@ class ResourceFinderAgent:
         self.hospitals_df = pd.read_csv(str(data_dir / 'hospitals.csv'))
     
     def match_resources(self, latitude: float, longitude: float,
-                       animal_species: str, injury_severity: str) -> dict:
+                        animal_species: str, injury_severity: str) -> dict:
         """
         Match best volunteer, vehicle, and hospital for rescue
         
@@ -33,6 +33,25 @@ class ResourceFinderAgent:
         """
         
         try:
+            # 🛡️ Abstention Check: If no animal was detected, skip resource matching
+            species_check = str(animal_species).lower()
+            severity_check = str(injury_severity).lower()
+            
+            if "none detected" in species_check or "no animal" in species_check or severity_check == "n/a":
+                print("⚠️ Resource Finder Abstained: No valid animal detected.")
+                return {
+                    'volunteer': None,
+                    'vehicle': None,
+                    'hospital': None,
+                    'alternates': {
+                        'volunteers': [],
+                        'vehicles': [],
+                        'hospitals': []
+                    },
+                    'matching_score': 0,
+                    'reasoning': 'Abstained: No animal detected, resource dispatch skipped.'
+                }
+
             # Find resources
             volunteers = self._find_volunteers(latitude, longitude)
             vehicles = self._find_vehicles(latitude, longitude)
