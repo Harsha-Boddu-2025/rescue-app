@@ -1,18 +1,20 @@
 """
-Condition Agent - Uses Claude Vision to analyze animal condition from image
+Condition Agent - Uses Google Gemini Vision to analyze animal condition from image
 """
 
-import anthropic
-import base64
+import os
+from google import genai
+from google.genai import types
 from pathlib import Path
 import json
 
 class ConditionAgent:
-    """Analyzes animal condition from uploaded photo"""
+    """Analyzes animal condition from uploaded photo using Gemini"""
     
     def __init__(self):
-        self.client = anthropic.Anthropic()
-        self.model = "claude-3-5-sonnet-20241022"
+        api_key = os.getenv("GEMINI_API_KEY")
+        self.client = genai.Client(api_key=api_key) if api_key else None
+        self.model = "gemini-2.5-flash"
     
     def analyze(self, image_path: str, case_data: dict) -> dict:
         """
@@ -23,19 +25,27 @@ class ConditionAgent:
             case_data: Case information
         
         Returns:
-            dict: Analysis result with species, injury_type, severity
+            dict: Analysis result with species, injury_type, severity, condition_notes
         """
         
+        if not self.client:
+            return {
+                "species": "Unknown",
+                "injury_type": "Configuration Error",
+                "severity": "High",
+                "condition_notes": "GEMINI_API_KEY is not set in backend environment."
+            }
+        
         try:
-            # Read and encode image
+            # Read image file bytes
             with open(image_path, 'rb') as img_file:
-                image_data = base64.standard_b64encode(img_file.read()).decode('utf-8')
+                image_bytes = img_file.read()
             
             # Determine image type
             image_ext = Path(image_path).suffix.lower()
             media_type = "image/jpeg" if image_ext in ['.jpg', '.jpeg'] else "image/png"
             
-            # Create prompt for Claude
+            # Create prompt for Gemini
             prompt = """You are an expert animal rescue coordinator analyzing emergency photos.
 
 Analyze this photo and provide:
@@ -52,39 +62,25 @@ Respond ONLY in valid JSON format with these exact keys:
     "condition_notes": "string"
 }"""
             
-            # Call Claude Vision API
-            message = self.client.messages.create(
+            # Call Gemini Vision API with JSON mime type configuration
+            response = self.client.models.generate_content(
                 model=self.model,
-                max_tokens=500,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": media_type,
-                                    "data": image_data
-                                }
-                            },
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ]
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=media_type),
+                    prompt
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             
-            # Parse response
-            response_text = message.content[0].text
+            # Parse response text
+            response_text = response.text
             
             # Extract JSON from response
             try:
                 result = json.loads(response_text)
             except json.JSONDecodeError:
-                # If JSON parsing fails, return mock data
                 result = {
                     "species": "Unknown Animal",
                     "injury_type": "Requires immediate assessment",
@@ -92,7 +88,7 @@ Respond ONLY in valid JSON format with these exact keys:
                     "condition_notes": "Animal requires urgent veterinary care"
                 }
             
-            # Validate result
+            # Validate required keys
             required_keys = ['species', 'injury_type', 'severity', 'condition_notes']
             for key in required_keys:
                 if key not in result:
@@ -115,7 +111,6 @@ Respond ONLY in valid JSON format with these exact keys:
         
         except Exception as e:
             print(f"❌ Condition Agent Error: {str(e)}")
-            # Return default analysis on error
             return {
                 "species": "Unknown Animal",
                 "injury_type": "Unable to analyze",
