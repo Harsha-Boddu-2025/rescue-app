@@ -1,147 +1,157 @@
 import streamlit as st
 import os
-from anthropic import Anthropic
-import base64
+from google import genai
+from google.genai import types
 from PIL import Image
 from datetime import datetime
-import json
 
 # Page config
 st.set_page_config(
-    page_title="🐾 Pet Rescue",
+    page_title="🐾 SafePaws | Pet Rescue Operations",
     page_icon="🐾",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for beautiful UI
+# Custom CSS for Modern, Premium Aesthetics
 st.markdown("""
 <style>
-    * {
-        margin: 0;
-        padding: 0;
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', sans-serif;
     }
-    
-    .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    .stApp {
+        background: radial-gradient(circle at top left, #1e1b4b, #311042, #0f172a);
+        background-attachment: fixed;
         min-height: 100vh;
-        padding: 20px;
     }
-    
-    .stContainer {
-        max-width: 600px;
-    }
-    
+
     h1 {
-        color: white;
+        color: #ffffff;
         text-align: center;
-        font-size: 2.5em;
-        margin-bottom: 10px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        font-weight: 700;
+        font-size: 2.8rem;
+        letter-spacing: -0.02em;
+        margin-bottom: 0px;
+        text-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
     }
-    
+
     .subtitle {
-        color: rgba(255,255,255,0.9);
+        color: #cbd5e1;
         text-align: center;
-        font-size: 1.1em;
-        margin-bottom: 30px;
+        font-size: 1.15rem;
+        margin-bottom: 35px;
+        font-weight: 400;
     }
-    
-    .upload-box {
-        background: white;
-        border-radius: 15px;
+
+    /* Glassmorphism Cards */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
         padding: 30px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         margin-bottom: 20px;
     }
-    
-    .result-box {
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        margin-top: 20px;
+
+    /* Form Elements styling inside Streamlit */
+    .stTextInput input, .stSelectbox select, .stTextArea textarea {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #ffffff !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
     }
-    
-    .case-card {
-        background: white;
-        border-left: 5px solid #667eea;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 15px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+
+    .stTextInput input:focus, .stSelectbox select:focus, .stTextArea textarea:focus {
+        border-color: #818cf8 !important;
+        box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2) !important;
     }
-    
-    .status-badge {
-        display: inline-block;
-        background: #667eea;
-        color: white;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-size: 0.9em;
-        margin-top: 10px;
+
+    label {
+        color: #e2e8f0 !important;
+        font-weight: 500 !important;
     }
-    
+
+    /* Custom Gradient Button */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
         color: white;
         border: none;
-        padding: 12px 30px;
-        font-size: 1.1em;
-        border-radius: 10px;
+        padding: 14px 28px;
+        font-size: 1.05rem;
+        font-weight: 600;
+        border-radius: 14px;
         width: 100%;
-        transition: transform 0.2s;
+        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+        transition: all 0.3s ease;
     }
-    
+
     .stButton > button:hover {
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: 0 15px 30px rgba(99, 102, 241, 0.6);
     }
-    
-    .input-field {
-        background: #f8f9ff;
-        border: 1px solid #e0e0ff;
-        border-radius: 10px;
-        padding: 12px;
-        margin-bottom: 10px;
-    }
-    
-    .analysis-result {
-        background: #f0f4ff;
-        border-left: 4px solid #667eea;
-        padding: 15px;
-        border-radius: 8px;
+
+    /* Analysis Result Box */
+    .analysis-box {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-left: 5px solid #6366f1;
+        padding: 20px;
+        border-radius: 14px;
+        color: #f1f5f9;
         margin-top: 15px;
+        line-height: 1.6;
     }
-    
-    .metric-card {
-        background: white;
-        border-radius: 10px;
-        padding: 15px;
+
+    /* Metric Cards */
+    .metric-container {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 20px;
         text-align: center;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
     }
-    
-    .metric-number {
-        font-size: 2em;
-        color: #667eea;
-        font-weight: bold;
+
+    .metric-val {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #818cf8;
     }
-    
-    .metric-label {
-        color: #666;
-        font-size: 0.9em;
+
+    .metric-lbl {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 5px;
+    }
+
+    .status-pill {
+        background: rgba(99, 102, 241, 0.2);
+        color: #c7d2fe;
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        padding: 6px 14px;
+        border-radius: 30px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        display: inline-block;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Get API client
+# Safe Gemini Client Initialization
 @st.cache_resource
 def get_client():
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        st.error("❌ ANTHROPIC_API_KEY not found in Streamlit Secrets!")
-        st.stop()
-    return Anthropic(api_key=api_key)
+        return None
+    return genai.Client(api_key=api_key)
 
 client = get_client()
 
@@ -149,175 +159,144 @@ client = get_client()
 if "cases" not in st.session_state:
     st.session_state.cases = []
 
-# Header
-st.markdown("<h1>🐾 Pet Rescue</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>Help animals in need with AI-powered analysis</p>", unsafe_allow_html=True)
+# Header Section
+st.markdown("<h1>🐾 SafePaws</h1>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>AI-Powered Emergency Animal Rescue & Response System</p>", unsafe_allow_html=True)
 
-# Main container
+# Main layout split
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
-    st.markdown('<div class="upload-box">', unsafe_allow_html=True)
-    st.subheader("📤 Report Rescue")
-    
-    # Upload photo
-    uploaded_file = st.file_uploader("Choose animal photo", type=["jpg", "jpeg", "png"])
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.subheader("📸 Upload Evidence")
+    uploaded_file = st.file_uploader("Upload clear photo of the animal", type=["jpg", "jpeg", "png"])
     
     if uploaded_file:
         image = Image.open(uploaded_file)
-        st.image(image, caption="Your photo", use_column_width=True)
+        st.image(image, caption="Uploaded Animal Photo", use_container_width=True)
         image_bytes = uploaded_file.getvalue()
     else:
-        st.info("📸 Upload an animal photo to get started")
+        st.info("💡 Tip: Upload a well-lit photo showing any injuries clearly for better AI triage.")
         image_bytes = None
-    
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
-    st.markdown('<div class="upload-box">', unsafe_allow_html=True)
-    st.subheader("📋 Details")
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.subheader("📋 Rescue Details")
     
-    name = st.text_input("Your Name", placeholder="Enter your name")
+    name = st.text_input("Your Name", placeholder="Jane Doe")
     phone = st.text_input("Phone Number", placeholder="9876543210")
-    email = st.text_input("Email", placeholder="your@email.com")
+    email = st.text_input("Email Address", placeholder="jane@example.com")
+    
     city = st.selectbox("City", [
-        "🏙️ Bangalore",
-        "🌆 Mumbai", 
-        "🏛️ Delhi",
-        "🌃 Hyderabad",
-        "🏖️ Chennai",
-        "🌉 Kolkata",
-        "⛰️ Pune",
-        "🏰 Jaipur",
-        "🌇 Ahmedabad",
-        "🎢 Lucknow"
+        "🏙️ Bangalore", "🌆 Mumbai", "🏛️ Delhi", "🌃 Hyderabad",
+        "🏖️ Chennai", "🌉 Kolkata", "⛰️ Pune", "🏰 Jaipur",
+        "🌇 Ahmedabad", "🎢 Lucknow"
     ])
     
-    address = st.text_area("Location Details", placeholder="Where did you find the animal?", height=80)
-    
+    address = st.text_area("Exact Location / Landmark", placeholder="e.g., Near Central Park gate, street #4", height=80)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Submit button
-if st.button("🚀 Analyze Animal", use_container_width=True):
+# Action button
+st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+if st.button("🚀 Run AI Triage & Submit Report", use_container_width=True):
     if not all([name, phone, email, address, image_bytes]):
-        st.error("❌ Please fill all fields and upload a photo!")
+        st.error("⚠️ Please fill out all required fields and upload a photo.")
+    elif not client:
+        st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your deployment secrets.")
     else:
-        with st.spinner("🔍 Analyzing animal... This may take a moment"):
+        with st.spinner("✨ Analyzing animal condition using Gemini Vision..."):
             try:
-                # Encode image
-                base64_image = base64.standard_b64encode(image_bytes).decode("utf-8")
-                
-                # Call Claude Vision
-                message = client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
-                    max_tokens=500,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image",
-                                    "source": {
-                                        "type": "base64",
-                                        "media_type": "image/jpeg",
-                                        "data": base64_image,
-                                    },
-                                },
-                                {
-                                    "type": "text",
-                                    "text": """Analyze this animal and provide:
-1. Species/Animal Type
-2. Visible Injuries or Conditions
-3. Severity (Critical/High/Medium/Low)
-4. Recommended Action
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
+                        """Analyze this rescue animal image and provide a structured report with:
+1. Species / Animal Type
+2. Visible Injuries or Medical Conditions
+3. Triage Severity Level (Critical / High / Medium / Low)
+4. Recommended Immediate Action
 
-Be concise and clear."""
-                                }
-                            ],
-                        }
-                    ],
+Keep it clear, professional, and well-structured."""
+                    ]
                 )
                 
-                analysis_text = message.content[0].text
+                analysis_text = response.text
                 
-                # Save case
                 case = {
                     "id": len(st.session_state.cases) + 1,
                     "name": name,
                     "phone": phone,
                     "email": email,
-                    "city": city.split(" ")[1],  # Remove emoji
+                    "city": city.split(" ")[1],
                     "address": address,
                     "analysis": analysis_text,
-                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "status": "📍 Reported"
+                    "date": datetime.now().strftime("%b %d, %Y - %H:%M"),
+                    "status": "📍 Dispatched / Active"
                 }
                 
                 st.session_state.cases.append(case)
                 
-                # Show result
-                st.markdown('<div class="result-box">', unsafe_allow_html=True)
-                st.success("✅ Report submitted successfully!")
-                st.subheader("🤖 AI Analysis")
-                st.markdown(f'<div class="analysis-result">{analysis_text}</div>', unsafe_allow_html=True)
+                st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+                st.success("🎉 Report submitted successfully!")
+                st.subheader("🤖 Gemini AI Triage Report")
+                st.markdown(f'<div class="analysis-box">{analysis_text}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
                 
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(f"❌ Analysis failed: {str(e)}")
 
-# Divider
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# Cases section
-st.subheader("📊 All Reports")
+# Dashboard Section
+st.subheader("📊 Live Incident Dashboard")
 
 if not st.session_state.cases:
-    st.info("📭 No rescue reports yet. Submit one to get started!")
+    st.info("📭 No reports logged in this session yet. Submit one above to test the dashboard!")
 else:
-    # Stats
-    col1, col2, col3 = st.columns(3)
+    m1, m2, m3 = st.columns(3)
     
-    with col1:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-number">{len(st.session_state.cases)}</div>', unsafe_allow_html=True)
-        st.markdown('<div class="metric-label">Total Reports</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    with m1:
+        st.markdown(f'''
+        <div class="metric-container">
+            <div class="metric-val">{len(st.session_state.cases)}</div>
+            <div class="metric-lbl">Total Reports</div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+    with m2:
+        critical_count = sum(1 for c in st.session_state.cases if "Critical" in c["analysis"])
+        st.markdown(f'''
+        <div class="metric-container">
+            <div class="metric-val" style="color: #f43f5e;">{critical_count}</div>
+            <div class="metric-lbl">Critical Cases</div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+    with m3:
+        st.markdown(f'''
+        <div class="metric-container">
+            <div class="metric-val" style="color: #10b981;">Active</div>
+            <div class="metric-lbl">Operations Status</div>
+        </div>
+        ''', unsafe_allow_html=True)
     
-    with col2:
-        critical = sum(1 for c in st.session_state.cases if "Critical" in c["analysis"])
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-number" style="color: #ff6b6b;">{critical}</div>', unsafe_allow_html=True)
-        st.markdown('<div class="metric-label">Critical Cases</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    with col3:
-        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.markdown(f'<div class="metric-number" style="color: #51cf66;">✅</div>', unsafe_allow_html=True)
-        st.markdown('<div class="metric-label">Active</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.divider()
-    
-    # Cases list
     for case in reversed(st.session_state.cases):
-        with st.expander(f"📍 {case['name']} - {case['city']} ({case['date']})"):
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.write(f"**Phone:** {case['phone']}")
-                st.write(f"**Email:** {case['email']}")
-                st.write(f"**Location:** {case['address']}")
-                st.markdown(f"**Analysis:**\n\n{case['analysis']}")
-            
-            with col2:
-                st.markdown(f'<div class="status-badge">{case["status"]}</div>', unsafe_allow_html=True)
+        with st.expander(f"📍 {case['city']} — {case['name']} ({case['date']})"):
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                st.write(f"**📞 Phone:** {case['phone']}")
+                st.write(f"**📧 Email:** {case['email']}")
+                st.write(f"**📍 Landmark:** {case['address']}")
+                st.markdown(f"**🤖 Triage Assessment:**\n\n{case['analysis']}")
+            with col_b:
+                st.markdown(f'<div class="status-pill">{case["status"]}</div>', unsafe_allow_html=True)
 
 # Footer
-st.divider()
 st.markdown("""
-<div style='text-align: center; color: #666; font-size: 0.9em; padding: 20px;'>
-    🐾 Pet Rescue Operations | Powered by Claude AI
-    <br>
-    <span style='font-size: 0.85em;'>Helping animals in need</span>
+<div style='text-align: center; color: #64748b; font-size: 0.9em; padding: 40px 0 20px 0;'>
+    🐾 SafePaws Rescue Operations Platform • Powered by Google Gemini AI
 </div>
 """, unsafe_allow_html=True)
