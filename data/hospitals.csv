@@ -1,0 +1,31 @@
+id,name,city,latitude,longitude,phone,specializations,available_beds,emergency_24h,operation_hours
+1,Bangalore Pet Rescue Hospital,Bangalore,12.9716,77.5946,9876543210,dog;cat;bird;reptile,5,true,24/7
+2,Whitefield Animal Care,Bangalore,12.9689,77.6245,9876543211,dog;cat;exotic_animals,3,true,24/7
+3,Indiranagar Vet Clinic,Bangalore,12.9716,77.6245,9876543212,dog;cat;birds,2,false,9AM-9PM
+4,Hyderabad Wildlife Hospital,Hyderabad,17.3850,78.4867,9876543220,birds;reptiles;wild_animals,7,true,24/7
+5,Gachibowli Animal Care,Hyderabad,17.3689,78.4740,9876543221,dog;cat;bird;small_animals,4,true,24/7
+6,Secunderabad Pet Hospital,Hyderabad,17.4009,78.4405,9876543222,dog;cat;exotic_pets,3,false,8AM-10PM
+7,Kolkata SPCA Hospital,Kolkata,22.5726,88.3639,9876543230,dog;cat;birds;rabbits,6,true,24/7
+8,Alipore Animal Welfare,Kolkata,22.5598,88.3391,9876543231,dog;cat;birds;wild_animals,4,true,24/7
+9,Salt Lake Veterinary Clinic,Kolkata,22.5871,88.3677,9876543232,dog;cat;small_pets,2,false,8AM-9PM
+10,Mumbai Pet Emergency Hospital,Mumbai,19.0760,72.8777,9876543240,dog;cat;bird;exotic,5,true,24/7
+11,Bandra Animal Rescue,Mumbai,19.1136,72.8697,9876543241,dog;cat;birds;wild_animals,4,true,24/7
+12,Powai Vet Care,Mumbai,19.0726,72.9124,9876543242,dog;cat;small_animals,3,false,9AM-8PM
+13,Delhi Animal Care Center,Delhi,28.7041,77.1025,9876543250,dog;cat;birds;exotic_animals,6,true,24/7
+14,Noida Pet Hospital,Delhi,28.6139,77.2090,9876543251,dog;cat;birds;reptiles,4,true,24/7
+15,Gurgaon Emergency Vet,Delhi,28.4089,77.3178,9876543252,dog;cat;small_pets,3,false,8AM-10PM
+16,Chennai Animal Rescue,Chennai,13.0827,80.2707,9876543260,dog;cat;birds;reptiles,5,true,24/7
+17,Velachery Vet Hospital,Chennai,13.1939,80.1829,9876543261,dog;cat;exotic_animals,3,true,24/7
+18,Besant Nagar Pet Care,Chennai,13.0489,80.2421,9876543262,dog;cat;birds,2,false,9AM-9PM
+19,Pune Pet Emergency,Pune,18.5204,73.8567,9876543270,dog;cat;birds;small_animals,5,true,24/7
+20,Kothrud Animal Hospital,Pune,18.5344,73.9081,9876543271,dog;cat;exotic_animals,3,true,24/7
+21,Viman Nagar Vet Clinic,Pune,18.5228,73.8476,9876543272,dog;cat;birds,2,false,8AM-9PM
+22,Jaipur Wildlife Care,Jaipur,26.9124,75.7873,9876543280,birds;reptiles;wild_animals,6,true,24/7
+23,C-Scheme Vet Hospital,Jaipur,26.9225,75.8244,9876543281,dog;cat;birds;exotic,4,true,24/7
+24,Malviya Nagar Animal Care,Jaipur,26.9118,75.7946,9876543282,dog;cat;small_pets,2,false,9AM-8PM
+25,Ahmedabad Pet Rescue,Ahmedabad,23.0225,72.5714,9876543290,dog;cat;birds;exotic_animals,5,true,24/7
+26,SG Highway Vet Hospital,Ahmedabad,23.1815,72.6313,9876543291,dog;cat;reptiles,3,true,24/7
+27,Ellisbridge Animal Care,Ahmedabad,23.0330,72.5807,9876543292,dog;cat;birds,2,false,8AM-9PM
+28,Lucknow Animal Emergency,Lucknow,26.8467,80.9462,9876543300,dog;cat;birds;wild_animals,5,true,24/7
+29,Hazratganj Vet Hospital,Lucknow,26.8389,80.9456,9876543301,dog;cat;exotic_animals,3,true,24/7
+30,Aliganj Pet Care,Lucknow,26.8255,80.9606,9876543302,dog;cat;small_pets,2,false,9AM-8PM

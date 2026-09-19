@@ -1,0 +1,38 @@
+# Streamlit UI
+streamlit==1.28.1
+streamlit-option-menu==0.3.6
+
+# Backend API
+Flask==3.0.0
+Flask-CORS==4.0.0
+python-dotenv==1.0.0
+
+# AI/ML
+anthropic==0.7.0
+
+# Data Processing
+pandas==2.0.3
+numpy==1.24.3
+
+# Database
+psycopg2-binary==2.9.7
+sqlalchemy==2.0.20
+
+# Image Processing
+Pillow==10.0.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Utilities
+python-dateutil==2.8.2
+
+# Data Visualization
+matplotlib==3.7.2
+plotly==5.15.0
+
+# Environment
+python-multipart==0.0.6
+
+# Development
+python-dotenv==1.0.0
