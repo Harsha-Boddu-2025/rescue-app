@@ -17,24 +17,43 @@ class PriorityAgent:
         """
         
         try:
-            severity = condition_result.get('severity', 'High').lower()
-            species = condition_result.get('species', '').lower()
-            injury_type = condition_result.get('injury_type', '').lower()
+            # Handle text string outputs or raw dictionary structures safely
+            if isinstance(condition_result, str):
+                text_lower = condition_result.lower()
+                # Check for abstention / non-animal upload
+                if "none detected" in text_lower or "no animal" in text_lower:
+                    return {
+                        'priority_level': 'N/A',
+                        'priority_score': 0,
+                        'reasoning': 'Abstained: No animal detected in the image.'
+                    }
+                # Fallback parse for raw string
+                severity = 'critical' if 'critical' in text_lower else ('high' if 'high' in text_lower else 'medium')
+                species = 'unknown'
+                injury_type = text_lower
+            else:
+                severity = str(condition_result.get('severity', condition_result.get('analysis', 'High'))).lower()
+                species = str(condition_result.get('species', '')).lower()
+                injury_type = str(condition_result.get('injury_type', condition_result.get('analysis', ''))).lower()
+                
+                # Check dictionary-level abstention
+                if "none detected" in severity or "none detected" in injury_type or "no animal" in injury_type:
+                    return {
+                        'priority_level': 'N/A',
+                        'priority_score': 0,
+                        'reasoning': 'Abstained: No animal detected in the image.'
+                    }
             
             # Priority scoring logic
             priority_score = 50  # Base score
-            priority_level = "Medium"
             
             # Severity assessment
             if 'critical' in severity:
                 priority_score = 95
-                priority_level = "Critical"
             elif 'high' in severity:
                 priority_score = 75
-                priority_level = "High"
             elif 'low' in severity:
                 priority_score = 25
-                priority_level = "Low"
             
             # Species-specific adjustments
             if any(x in species for x in ['infant', 'baby', 'puppy', 'kitten', 'endangered']):
@@ -43,14 +62,13 @@ class PriorityAgent:
             # Injury-specific adjustments
             urgent_keywords = [
                 'poisoning', 'choking', 'bleeding', 'unconscious',
-                'severe injury', 'hit by vehicle', 'electrocution', 'fire'
+                'severe injury', 'hit by vehicle', 'electrocution', 'fire', 'trauma'
             ]
             
             if any(keyword in injury_type for keyword in urgent_keywords):
                 priority_score = min(100, priority_score + 15)
-                priority_level = "Critical"
             
-            # Determine final level
+            # Determine final level based on score ranges
             if priority_score >= 80:
                 priority_level = "Critical"
             elif priority_score >= 60:
@@ -60,15 +78,17 @@ class PriorityAgent:
             else:
                 priority_level = "Low"
             
+            reasoning = generate_reasoning(
+                priority_level,
+                severity,
+                species,
+                injury_type
+            )
+            
             result = {
                 'priority_level': priority_level,
                 'priority_score': priority_score,
-                'reasoning': generate_reasoning(
-                    priority_level,
-                    severity,
-                    species,
-                    injury_type
-                )
+                'reasoning': reasoning
             }
             
             print(f"✅ Priority Agent Result: {priority_level} (Score: {priority_score}/100)")
@@ -99,10 +119,10 @@ def generate_reasoning(priority_level: str, severity: str, species: str, injury_
     if any(x in species for x in ['infant', 'baby', 'puppy', 'endangered']):
         factors.append(f"Vulnerable/young {species}")
     
-    if any(x in injury_type.lower() for x in ['bleeding', 'poisoning', 'choking']):
-        factors.append(f"Life-threatening injury: {injury_type}")
+    if any(x in injury_type.lower() for x in ['bleeding', 'poisoning', 'choking', 'trauma']):
+        factors.append(f"Life-threatening indicator detected in report")
     
-    reasoning += ", ".join(factors) if factors else "Medical assessment"
+    reasoning += ", ".join(factors) if factors else "Medical assessment triage"
     reasoning += ". Immediate rescue team dispatch recommended."
     
     return reasoning
