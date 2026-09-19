@@ -8,7 +8,7 @@ from flask_cors import CORS
 import os
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import requests
 from functools import wraps
@@ -55,7 +55,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'version': '1.0.0'
     }), 200
 
@@ -64,18 +64,7 @@ def health_check():
 def create_case():
     """
     Create a new rescue case from citizen report
-    
-    Expected fields:
-    - citizen_name (text)
-    - citizen_phone (text)
-    - citizen_email (text, optional)
-    - latitude (float)
-    - longitude (float)
-    - city (text)
-    - street_address (text)
-    - photo (file)
     """
-    
     try:
         # Validate request
         if 'photo' not in request.files:
@@ -133,7 +122,7 @@ def create_case():
             'city': city,
             'street_address': street_address,
             'photo_url': f'/uploads/{filename}',
-            'created_at': datetime.now().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
             'status': 'analyzing',
             'agents': {
                 'condition': {'status': 'pending', 'result': None},
@@ -161,15 +150,11 @@ def create_case():
 @app.route('/api/cases/<case_id>', methods=['GET'])
 def get_case(case_id):
     """Get case details with agent progress"""
-    
     try:
         case = db.get_case(case_id)
-        
         if not case:
             return jsonify({'error': 'Case not found'}), 404
-        
         return jsonify(case), 200
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -177,7 +162,6 @@ def get_case(case_id):
 @app.route('/api/cases/active', methods=['GET'])
 def get_active_cases():
     """Get all active cases"""
-    
     try:
         cases = db.get_active_cases()
         return jsonify({'cases': cases}), 200
@@ -188,15 +172,11 @@ def get_active_cases():
 @app.route('/api/cases/<case_id>/status', methods=['PUT'])
 def update_case_status(case_id):
     """Update case status"""
-    
     try:
         data = request.json
         status = data.get('status')
-        
         db.update_case_status(case_id, status)
-        
         return jsonify({'status': 'updated'}), 200
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -204,7 +184,6 @@ def update_case_status(case_id):
 @app.route('/api/cases/<case_id>/agent-status', methods=['PUT'])
 def update_agent_status(case_id):
     """Update agent progress for a case"""
-    
     try:
         data = request.json
         agent_name = data.get('agent_name')
@@ -212,9 +191,7 @@ def update_agent_status(case_id):
         agent_result = data.get('result')
         
         db.update_agent_status(case_id, agent_name, agent_status, agent_result)
-        
         return jsonify({'status': 'updated'}), 200
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -224,7 +201,6 @@ def process_case_agents(case_id, case, photo_path):
     Process case through agent pipeline
     Runs in separate thread to avoid blocking
     """
-    
     try:
         # Step 1: Condition Agent
         print(f"[Case {case_id}] Running Condition Agent...")
@@ -275,7 +251,6 @@ def process_case_agents(case_id, case, photo_path):
 @app.route('/api/volunteers/nearest', methods=['POST'])
 def get_nearest_volunteers():
     """Find nearest available volunteers"""
-    
     try:
         data = request.json
         latitude = data.get('latitude')
@@ -285,7 +260,6 @@ def get_nearest_volunteers():
         
         volunteers = db.find_nearest_volunteers(latitude, longitude, radius, limit)
         return jsonify({'volunteers': volunteers}), 200
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -293,7 +267,6 @@ def get_nearest_volunteers():
 @app.route('/api/vehicles/nearest', methods=['POST'])
 def get_nearest_vehicles():
     """Find nearest available vehicles"""
-    
     try:
         data = request.json
         latitude = data.get('latitude')
@@ -303,7 +276,6 @@ def get_nearest_vehicles():
         
         vehicles = db.find_nearest_vehicles(latitude, longitude, radius, limit)
         return jsonify({'vehicles': vehicles}), 200
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -311,7 +283,6 @@ def get_nearest_vehicles():
 @app.route('/api/hospitals/nearest', methods=['POST'])
 def get_nearest_hospitals():
     """Find nearest veterinary hospitals"""
-    
     try:
         data = request.json
         latitude = data.get('latitude')
@@ -322,7 +293,6 @@ def get_nearest_hospitals():
         
         hospitals = db.find_nearest_hospitals(latitude, longitude, animal_species, radius, limit)
         return jsonify({'hospitals': hospitals}), 200
-    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -330,7 +300,6 @@ def get_nearest_hospitals():
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
     """Get system analytics"""
-    
     try:
         analytics = db.get_analytics()
         return jsonify(analytics), 200
@@ -349,6 +318,7 @@ def internal_error(e):
 
 
 if __name__ == '__main__':
-    print("🚀 Starting Pet Rescue API Server...")
-    print("📡 Running on http://localhost:8000")
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    print(f"🚀 Starting Pet Rescue API Server on port {port}...")
+    app.run(debug=False, host='0.0.0.0', port=port)
+
