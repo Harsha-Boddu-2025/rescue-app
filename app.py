@@ -217,7 +217,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
             
             try:
                 response = client.models.generate_content(
-                    model='gemini-2.0-flash',
+                    model='gemini-3.6-flash',
                     contents=[
                         types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
                         """Analyze this rescue animal image and provide a structured report with:
