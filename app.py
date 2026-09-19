@@ -215,21 +215,10 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
     elif not client:
         st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your deployment secrets.")
     else:
-        progress_container = st.container()
-        
-        with progress_container:
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-            st.subheader("🤖 Multi-Agent Rescue Pipeline")
-            
-            # Interactive Progress Bar for Agent Workflows
-            p_bar = st.progress(0)
-            status_text = st.empty()
-            
-            # Step 1: Condition Agent
-            status_text.info("🔍 **[1/4] Condition Agent**: Invoking Gemini Vision to analyze animal species & injury severity...")
-            p_bar.progress(25)
-            
+        with st.status("🤖 Running Multi-Agent Rescue Pipeline...", expanded=True) as status:
             try:
+                # Step 1: Condition Agent
+                st.write("🔍 **[1/4] Condition Agent**: Invoking Gemini Vision to analyze animal species & injury severity...")
                 response = client.models.generate_content(
                     model='gemini-3.6-flash',
                     contents=[
@@ -242,18 +231,16 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     ]
                 )
                 analysis_text = response.text
-                time.sleep(0.4) # Aesthetic pacing for multi-agent simulation
+                time.sleep(0.4)
 
-                # 🛡️ Check if Gemini abstained (no animal found)
+                # 🛡️ Abstention Check
                 analysis_lower = analysis_text.lower()
                 is_valid_animal = not any(keyword in analysis_lower for keyword in [
-                    "none detected", "no animal", "not applicable", "n/a (no animal"
+                    "none detected", "no animal", "not an animal", "not applicable", "n/a (no animal"
                 ])
 
                 # Step 2: Priority Agent
-                status_text.info("⚡ **[2/4] Priority Agent**: Computing urgency score and triage level...")
-                p_bar.progress(50)
-                
+                st.write("⚡ **[2/4] Priority Agent**: Evaluating urgency score and injury severity level...")
                 if is_valid_animal:
                     severity_level = "Critical" if "Critical" in analysis_text else "High"
                     score = 95 if severity_level == "Critical" else 75
@@ -263,9 +250,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 time.sleep(0.4)
 
                 # Step 3: Resource Finder Agent
-                status_text.info("📍 **[3/4] Resource Finder Agent**: Running Haversine geo-matching for volunteers & hospitals...")
-                p_bar.progress(75)
-                
+                st.write("📍 **[3/4] Resource Finder Agent**: Running Haversine geo-matching for volunteers & hospitals...")
                 if is_valid_animal:
                     assigned_volunteer = "Rahul Sharma (2.4 km away)"
                     assigned_vehicle = "Ambulance - KA-01-AB-1234 (3.1 km away)"
@@ -277,15 +262,14 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 time.sleep(0.4)
 
                 # Step 4: Coordinator Agent
-                status_text.info("📱 **[4/4] Coordinator Agent**: Allocating mission ID and dispatching automated alerts...")
-                p_bar.progress(100)
-                mission_id = f"M-{len(st.session_state.cases) + 1001}" if is_valid_animal else "INVALID-SUBMISSION"
+                st.write("📱 **[4/4] Coordinator Agent**: Allocating mission ID and dispatching automated alerts...")
+                mission_id = f"M-{len(st.session_state.cases) + 1001}" if is_valid_animal else "ABSTAINED-00"
                 time.sleep(0.3)
                 
                 if is_valid_animal:
-                    status_text.success("🎉 **All Multi-Agents Executed Successfully!** Mission Dispatched.")
+                    status.update(label="🎉 All Multi-Agents Executed Successfully! Mission Dispatched.", state="complete", expanded=False)
                 else:
-                    status_text.warning("⚠️ **Abstention Triggered**: No animal detected. Rescue dispatch skipped.")
+                    status.update(label="⚠️ Abstention Triggered: No animal detected. Rescue dispatch skipped.", state="error", expanded=False)
 
                 # Save case data
                 case = {
@@ -310,17 +294,24 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 
                 st.markdown("---")
                 st.subheader("📋 Final Rescue Summary")
-                st.markdown(f'''<div class="analysis-box">
-                    <b>Mission ID:</b> {mission_id} <br>
-                    <b>Urgency Score:</b> {score}/100 ({severity_level})<br>
-                    <b>Assigned Volunteer:</b> {assigned_volunteer}<br>
-                    <b>Assigned Hospital:</b> {assigned_hospital}<br><br>
-                    {analysis_text}
-                </div>''', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                
+                if is_valid_animal:
+                    st.markdown(f'''<div class="analysis-box">
+                        <b>Mission ID:</b> {mission_id} <br>
+                        <b>Urgency Score:</b> {score}/100 ({severity_level})<br>
+                        <b>Assigned Volunteer:</b> {assigned_volunteer}<br>
+                        <b>Assigned Hospital:</b> {assigned_hospital}<br><br>
+                        {analysis_text}
+                    </div>''', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'''<div class="analysis-box" style="border-left-color: #f43f5e;">
+                        <b>⚠️ Abstention Notice:</b> No animal detected in the uploaded image. Resource dispatch and emergency alerts have been bypassed.<br><br>
+                        {analysis_text}
+                    </div>''', unsafe_allow_html=True)
                 
             except Exception as e:
-                st.error(f"❌ Pipeline failed: {str(e)}")
+                status.update(label="❌ Pipeline Failed", state="error", expanded=True)
+                st.error(f"Pipeline error: {str(e)}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
