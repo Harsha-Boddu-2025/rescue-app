@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import time
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -13,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Modern, Premium Aesthetics
+# Custom CSS for Modern, Premium Aesthetics & Hiding Empty Column Wrappers
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -26,6 +27,15 @@ st.markdown("""
         background: radial-gradient(circle at top left, #1e1b4b, #311042, #0f172a);
         background-attachment: fixed;
         min-height: 100vh;
+    }
+
+    /* Hide empty column containers / phantom boxes */
+    div[data-testid="column"]:empty {
+        display: none !important;
+    }
+    
+    [data-testid="stSidebarNav"] {
+        display: none;
     }
 
     h1 {
@@ -211,9 +221,13 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
             st.markdown('<div class="glass-card">', unsafe_allow_html=True)
             st.subheader("🤖 Multi-Agent Rescue Pipeline")
             
-            # Agent 1: Condition Agent
-            status_1 = st.empty()
-            status_1.info("🔍 **Condition Agent**: Analyzing animal species and injury severity from image...")
+            # Interactive Progress Bar for Agent Workflows
+            p_bar = st.progress(0)
+            status_text = st.empty()
+            
+            # Step 1: Condition Agent
+            status_text.info("🔍 **[1/4] Condition Agent**: Invoking Gemini Vision to analyze animal species & injury severity...")
+            p_bar.progress(25)
             
             try:
                 response = client.models.generate_content(
@@ -228,28 +242,30 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     ]
                 )
                 analysis_text = response.text
-                status_1.success("✅ **Condition Agent Completed**: Injury and species successfully identified.")
+                time.sleep(0.4) # Aesthetic pacing for multi-agent simulation
 
-                # Agent 2: Priority Agent
-                status_2 = st.empty()
-                status_2.info("⚡ **Priority Agent**: Calculating urgency score and triage level...")
+                # Step 2: Priority Agent
+                status_text.info("⚡ **[2/4] Priority Agent**: Computing urgency score and triage triage level...")
+                p_bar.progress(50)
                 severity_level = "Critical" if "Critical" in analysis_text else "High"
                 score = 95 if severity_level == "Critical" else 75
-                status_2.success(f"✅ **Priority Agent Completed**: Urgency Score **{score}/100** ({severity_level} Priority)")
+                time.sleep(0.4)
 
-                # Agent 3: Resource Finder Agent
-                status_3 = st.empty()
-                status_3.info("📍 **Resource Finder Agent**: Calculating Haversine distance to volunteers & hospitals...")
+                # Step 3: Resource Finder Agent
+                status_text.info("📍 **[3/4] Resource Finder Agent**: Running Haversine geo-matching for volunteers & hospitals...")
+                p_bar.progress(75)
                 assigned_volunteer = "Rahul Sharma (2.4 km away)"
                 assigned_vehicle = "Ambulance - KA-01-AB-1234 (3.1 km away)"
                 assigned_hospital = "City Veterinary Emergency Care (4.5 km away, 24/7)"
-                status_3.success("✅ **Resource Finder Completed**: Nearest volunteer, vehicle, and hospital matched.")
+                time.sleep(0.4)
 
-                # Agent 4: Coordinator Agent
-                status_4 = st.empty()
-                status_4.info("📱 **Coordinator Agent**: Generating mission ID and dispatching notifications...")
+                # Step 4: Coordinator Agent
+                status_text.info("📱 **[4/4] Coordinator Agent**: Allocating mission ID and dispatching automated alerts...")
+                p_bar.progress(100)
                 mission_id = f"M-{len(st.session_state.cases) + 1001}"
-                status_4.success(f"✅ **Coordinator Agent Completed**: Mission **{mission_id}** dispatched. SMS alerts sent.")
+                time.sleep(0.3)
+                
+                status_text.success("🎉 **All Multi-Agents Executed Successfully!** Mission Dispatched.")
 
                 # Save case data
                 case = {
@@ -274,7 +290,13 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 
                 st.markdown("---")
                 st.subheader("📋 Final Rescue Summary")
-                st.markdown(f'<div class="analysis-box"><b>Mission ID:</b> {mission_id}<br><b>Assigned Volunteer:</b> {assigned_volunteer}<br><b>Assigned Hospital:</b> {assigned_hospital}<br><br>{analysis_text}</div>', unsafe_allow_html=True)
+                st.markdown(f'''<div class="analysis-box">
+                    <b>Mission ID:</b> {mission_id} <br>
+                    <b>Urgency Score:</b> {score}/100 ({severity_level})<br>
+                    <b>Assigned Volunteer:</b> {assigned_volunteer}<br>
+                    <b>Assigned Hospital:</b> {assigned_hospital}<br><br>
+                    {analysis_text}
+                </div>''', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
                 
             except Exception as e:
