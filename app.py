@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Modern, Premium Aesthetics & Hiding Empty Column Wrappers
+# Custom CSS for Modern, Premium Aesthetics & Hiding Empty Containers
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -29,8 +29,9 @@ st.markdown("""
         min-height: 100vh;
     }
 
-    /* Hide empty column containers / phantom boxes */
-    div[data-testid="column"]:empty {
+    /* Hide empty column containers and empty glass cards */
+    div[data-testid="column"]:empty,
+    .glass-card:empty {
         display: none !important;
     }
     
@@ -341,7 +342,6 @@ else:
         ''', unsafe_allow_html=True)
         
     with m3:
-        # Dynamically check the status of the latest submission
         latest_case = st.session_state.cases[-1] if st.session_state.cases else None
         is_active_mission = latest_case and "Dispatched" in latest_case["status"]
         
