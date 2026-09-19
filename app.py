@@ -341,9 +341,16 @@ else:
         ''', unsafe_allow_html=True)
         
     with m3:
+        # Dynamically check the status of the latest submission
+        latest_case = st.session_state.cases[-1] if st.session_state.cases else None
+        is_active_mission = latest_case and "Dispatched" in latest_case["status"]
+        
+        status_label = "Active" if is_active_mission else "Standby"
+        status_color = "#10b981" if is_active_mission else "#f59e0b"
+        
         st.markdown(f'''
         <div class="metric-container">
-            <div class="metric-val" style="color: #10b981;">Active</div>
+            <div class="metric-val" style="color: {status_color};">{status_label}</div>
             <div class="metric-lbl">Operations Status</div>
         </div>
         ''', unsafe_allow_html=True)
