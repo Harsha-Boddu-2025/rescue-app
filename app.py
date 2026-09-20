@@ -249,13 +249,19 @@ CITY_SUBLOCATIONS = {
     }
 }
 
-# Google Sheet Sync Helper with your updated Web App URL targeting specific tab gid
+# Google Sheet Sync Helper with detailed response logging for troubleshooting
 def sync_to_google_sheet(case_data):
     web_app_url = "https://script.google.com/macros/s/AKfycbznTlJCMXt6JkuXyHbKMIcKDOYRpLIxDgIEdAY-s0ZAdRBJ0nbGJYCA_7qchB-BqPr8/exec"
     try:
-        response = requests.post(web_app_url, json=case_data, timeout=5)
+        print(f"📤 Sending data to Google Sheet...")
+        response = requests.post(web_app_url, json=case_data, timeout=10, allow_redirects=True)
+        
+        print(f"📥 Google Response Status: {response.status_code}")
+        print(f"📥 Google Response Text: {response.text}")
+        
         return response.status_code == 200
-    except Exception:
+    except Exception as e:
+        print(f"❌ Sheet Sync Exception: {str(e)}")
         return False
 
 # Initialize Agents safely
