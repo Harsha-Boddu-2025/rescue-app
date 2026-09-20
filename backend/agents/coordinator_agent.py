@@ -8,7 +8,7 @@ class CoordinatorAgent:
     """Coordinates and assigns rescue missions"""
     
     def assign_mission(self, case_id: str, volunteer_id: int, vehicle_id: int,
-                      hospital_id: int, case_data: dict) -> dict:
+                       hospital_id: int, case_data: dict) -> dict:
         """
         Create and assign a rescue mission
         
@@ -104,7 +104,7 @@ class CoordinatorAgent:
         }
     
     def update_mission_status(self, mission_id: str, status: str,
-                             location: dict = None) -> dict:
+                              location: dict = None) -> dict:
         """Update mission status during rescue operation"""
         
         return {
