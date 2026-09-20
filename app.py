@@ -217,6 +217,11 @@ st.markdown("""
 
 # Granular Sub-Locations Database with Exact Coordinates
 CITY_SUBLOCATIONS = {
+    "Bangalore": {
+        "Indiranagar / MG Road": {"lat": 12.9716, "lng": 77.5946},
+        "Koramangala Zone": {"lat": 12.9352, "lng": 77.6245},
+        "Whitefield Tech Corridor": {"lat": 12.9689, "lng": 77.5906}
+    },
     "Hyderabad": {
         "Banjara Hills / Jubilee Hills": {"lat": 17.4348, "lng": 78.4011},
         "Gachibowli / HITECH City": {"lat": 17.4475, "lng": 78.3614},
@@ -244,9 +249,9 @@ CITY_SUBLOCATIONS = {
     }
 }
 
-# Google Sheet Sync Helper with your updated Web App URL
+# Google Sheet Sync Helper with your updated Web App URL targeting target tab gid
 def sync_to_google_sheet(case_data):
-    web_app_url = "https://script.google.com/macros/s/AKfycbwMZ9_TFYUWIy7r75EOZgj7PxII2LsNui-f69BVmUma-nO2Y-R7_gGyeN4JBrLONM89/exec"
+    web_app_url = "https://script.google.com/macros/s/AKfycbznTlJCMXt6JkuXyHbKMIcKDOYRpLIxDgIEdAY-s0ZAdRBJ0nbGJYCA_7qchB-BqPr8/exec"
     try:
         response = requests.post(web_app_url, json=case_data, timeout=5)
         return response.status_code == 200
@@ -305,7 +310,7 @@ with col2:
     email = st.text_input("Email Address", placeholder="jane@example.com")
     
     selected_city_display = st.selectbox("NGO Hub City", [
-        "🏙️ Hyderabad", "🌊 Rajahmundry", "⚓ Visakhapatnam", 
+        "🏙️ Bangalore", "🏙️ Hyderabad", "🌊 Rajahmundry", "⚓ Visakhapatnam", 
         "🌉 Kolkata", "🏰 Vizianagaram"
     ])
     city_name = selected_city_display.split(" ")[1]
@@ -359,7 +364,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
 
                 # Step 3: Resource Finder Agent
                 st.write(f"📍 **[3/4] Resource Finder Agent**: Querying local resources for {incident_time.strftime('%I:%M %p')} dispatch...")
-                subloc_coords = CITY_SUBLOCATIONS.get(city_name, {}).get(selected_subloc, {"lat": 17.3850, "lng": 78.4867})
+                subloc_coords = CITY_SUBLOCATIONS.get(city_name, {}).get(selected_subloc, {"lat": 12.9716, "lng": 77.5946})
                 
                 if is_valid_animal and severity_level != "N/A":
                     resource_result = resource_finder.match_resources(
