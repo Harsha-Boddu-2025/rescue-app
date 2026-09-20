@@ -249,7 +249,7 @@ CITY_SUBLOCATIONS = {
     }
 }
 
-# Google Sheet Sync Helper with your updated Web App URL targeting target tab gid
+# Google Sheet Sync Helper with your updated Web App URL targeting specific tab gid
 def sync_to_google_sheet(case_data):
     web_app_url = "https://script.google.com/macros/s/AKfycbznTlJCMXt6JkuXyHbKMIcKDOYRpLIxDgIEdAY-s0ZAdRBJ0nbGJYCA_7qchB-BqPr8/exec"
     try:
