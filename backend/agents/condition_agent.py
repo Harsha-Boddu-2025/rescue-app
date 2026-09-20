@@ -14,7 +14,7 @@ class ConditionAgent:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
-        self.model = "gemini-2.0-flash"
+        self.model = "gemini-3.6-flash"  # <-- Updated to the requested active model
     
     def analyze(self, image_path: str, case_data: dict) -> dict:
         """Analyze image to determine animal species, injury type, and severity"""
@@ -72,7 +72,6 @@ Respond ONLY in valid JSON format with these exact keys:
             try:
                 result = json.loads(response_text)
             except json.JSONDecodeError:
-                # Fallback if markdown code blocks wrap the json
                 clean_text = response_text.replace("```json", "").replace("```", "").strip()
                 result = json.loads(clean_text)
             
