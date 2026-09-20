@@ -1,3 +1,7 @@
+"""
+Condition Agent - Analyzes animal condition from uploaded photo using Gemini
+"""
+
 import os
 from google import genai
 from google.genai import types
@@ -13,18 +17,10 @@ class ConditionAgent:
         self.model = "gemini-2.5-flash"
     
     def analyze(self, image_path: str, case_data: dict) -> dict:
-        """
-        Analyze image to determine animal species, injury type, and severity
-        
-        Args:
-            image_path: Path to uploaded image
-            case_data: Case information
-        
-        Returns:
-            dict: Analysis result with species, injury_type, severity, condition_notes
-        """
+        """Analyze image to determine animal species, injury type, and severity"""
         
         if not self.client:
+            print("❌ Condition Agent Error: GEMINI_API_KEY is not set.")
             return {
                 "species": "Unknown",
                 "injury_type": "Configuration Error",
@@ -41,7 +37,6 @@ class ConditionAgent:
             image_ext = Path(image_path).suffix.lower()
             media_type = "image/jpeg" if image_ext in ['.jpg', '.jpeg'] else "image/png"
             
-            # Create prompt for Gemini
             prompt = """You are an expert animal rescue coordinator analyzing emergency photos.
 
 Analyze this photo and provide:
@@ -70,19 +65,16 @@ Respond ONLY in valid JSON format with these exact keys:
                 )
             )
             
-            # Parse response text
-            response_text = response.text
+            response_text = response.text.strip()
+            print(f"🔍 Raw Gemini Response: {response_text}")
             
-            # Extract JSON from response
+            # Extract JSON from response safely
             try:
                 result = json.loads(response_text)
             except json.JSONDecodeError:
-                result = {
-                    "species": "Unknown Animal",
-                    "injury_type": "Requires immediate assessment",
-                    "severity": "High",
-                    "condition_notes": "Animal requires urgent veterinary care"
-                }
+                # Fallback if markdown code blocks wrap the json
+                clean_text = response_text.replace("```json", "").replace("```", "").strip()
+                result = json.loads(clean_text)
             
             # Validate required keys
             required_keys = ['species', 'injury_type', 'severity', 'condition_notes']
@@ -99,15 +91,14 @@ Respond ONLY in valid JSON format with these exact keys:
                 'n/a': 'N/A'
             }
             
-            severity = result.get('severity', 'High').lower()
+            severity = str(result.get('severity', 'High')).lower()
             result['severity'] = severity_map.get(severity, 'High')
             
-            print(f"✅ Condition Agent Result: {result['species']} - {result['severity']} severity")
-            
+            print(f"✅ Condition Agent Success: {result['species']} - {result['severity']} severity")
             return result
         
         except Exception as e:
-            print(f"❌ Condition Agent Error: {str(e)}")
+            print(f"❌ Condition Agent Exception: {str(e)}")
             return {
                 "species": "Unknown Animal",
                 "injury_type": "Unable to analyze",
