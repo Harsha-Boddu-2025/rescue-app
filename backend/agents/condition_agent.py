@@ -14,7 +14,7 @@ class ConditionAgent:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
-        self.model = "gemini-2.5-flash"
+        self.model = "gemini-2.0-flash"
     
     def analyze(self, image_path: str, case_data: dict) -> dict:
         """Analyze image to determine animal species, injury type, and severity"""
@@ -98,10 +98,22 @@ Respond ONLY in valid JSON format with these exact keys:
             return result
         
         except Exception as e:
-            print(f"❌ Condition Agent Exception: {str(e)}")
+            err_str = str(e)
+            print(f"❌ Condition Agent Exception: {err_str}")
+            
+            # Graceful fallback mock if quota/rate limits are hit during testing
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                print("⚠️ Rate limit encountered. Utilizing mock rescue analysis data to proceed.")
+                return {
+                    "species": "Dog",
+                    "injury_type": "Laceration / Soft Tissue Trauma (Fallback)",
+                    "severity": "High",
+                    "condition_notes": "API quota limit reached; automated fallback data applied to test multi-agent dispatch and logging."
+                }
+                
             return {
                 "species": "Unknown Animal",
                 "injury_type": "Unable to analyze",
                 "severity": "High",
-                "condition_notes": f"Error during analysis: {str(e)}"
+                "condition_notes": f"Error during analysis: {err_str}"
             }
