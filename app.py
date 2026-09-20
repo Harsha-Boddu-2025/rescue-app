@@ -244,16 +244,16 @@ CITY_SUBLOCATIONS = {
     }
 }
 
-# Google Sheet Sync Helper with your deployed Web App URL
+# Google Sheet Sync Helper with your updated Web App URL
 def sync_to_google_sheet(case_data):
-    web_app_url = "https://script.google.com/macros/s/AKfycbwMZ9_TFYUWIy7r75EOZgj7PxII2LsNui-f69BVmUma-nO2Y-R7_gGyeN4JBrLONM89/exec""
+    web_app_url = "https://script.google.com/macros/s/AKfycbwMZ9_TFYUWIy7r75EOZgj7PxII2LsNui-f69BVmUma-nO2Y-R7_gGyeN4JBrLONM89/exec"
     try:
         response = requests.post(web_app_url, json=case_data, timeout=5)
         return response.status_code == 200
     except Exception:
         return False
 
-# Initialize Agents safely with exception traceback
+# Initialize Agents safely
 @st.cache_resource
 def init_agents():
     if AGENTS_AVAILABLE:
@@ -397,7 +397,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 h_data = resource_result.get('hospital')
 
                 assigned_volunteer = f"{v_data['name']} ({v_data['distance']} km away, Ph: {v_data['phone']})" if v_data else "None"
-                assigned_vehicle = f"{v_data.get('type', 'Ambulance')} - Reg: {veh_data['registration']} ({veh_data['distance']} km away)" if veh_data else "None"
+                assigned_vehicle = f"{veh_data.get('type', 'Ambulance')} - Reg: {veh_data['registration']} ({veh_data['distance']} km away)" if veh_data else "None"
                 assigned_hospital = f"{h_data['name']} ({h_data['effective_distance']} km away, Beds: {h_data['available_beds']})" if h_data else "None"
 
                 hosp_lat = h_data.get('latitude', subloc_coords['lat'] + 0.05) if h_data else subloc_coords['lat'] + 0.05
