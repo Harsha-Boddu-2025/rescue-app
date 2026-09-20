@@ -21,7 +21,7 @@ class PriorityAgent:
             if isinstance(condition_result, str):
                 text_lower = condition_result.lower()
                 # Check for abstention / non-animal upload
-                if "none detected" in text_lower or "no animal" in text_lower:
+                if "none detected" in text_lower or "no animal" in text_lower or "not an animal" in text_lower:
                     return {
                         'priority_level': 'N/A',
                         'priority_score': 0,
@@ -37,7 +37,7 @@ class PriorityAgent:
                 injury_type = str(condition_result.get('injury_type', condition_result.get('analysis', ''))).lower()
                 
                 # Check dictionary-level abstention
-                if "none detected" in severity or "none detected" in injury_type or "no animal" in injury_type:
+                if any(kw in severity or kw in injury_type or kw in species for kw in ["none", "not an animal", "n/a", "no animal"]):
                     return {
                         'priority_level': 'N/A',
                         'priority_score': 0,
