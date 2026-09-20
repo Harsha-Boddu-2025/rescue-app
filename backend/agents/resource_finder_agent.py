@@ -144,7 +144,7 @@ class ResourceFinderAgent:
     
     def _find_vehicles(self, latitude: float, longitude: float,
                       max_distance: float = 50.0, limit: int = 3) -> list:
-        """Find nearest available vehicles with type priority and distance sorting"""
+        """Find nearest available vehicles with type priority and distance sorting (Finding 2 Fix)"""
         try:
             available = self.vehicles_df[
                 self.vehicles_df['status'].astype(str).str.lower() == 'available'
@@ -165,8 +165,18 @@ class ResourceFinderAgent:
             type_priority = {'ambulance': 0, 'van': 1, 'pickup': 2}
             available['type_priority'] = available['type'].map(type_priority).fillna(3)
             
-            # Sort by priority then distance
-            available = available.sort_values(['type_priority', 'distance'])
+            # Finding 2 Fix: Only prefer an ambulance within a strict local radius (<= 15 km). 
+            # Otherwise, prioritize proximity so distant ambulances don't override close alternative vehicles.
+            def vehicle_sort_score(row):
+                d = row['distance']
+                tp = row['type_priority']
+                if d <= 15.0:
+                    return tp * 10 + d  # Within 15km, vehicle type priority dominates
+                else:
+                    return 1000 + d     # Beyond 15km, distance strictly takes precedence
+            
+            available['sort_score'] = available.apply(vehicle_sort_score, axis=1)
+            available = available.sort_values('sort_score')
             
             results = []
             for _, v in available.head(limit).iterrows():
@@ -189,7 +199,7 @@ class ResourceFinderAgent:
     def _find_hospitals(self, latitude: float, longitude: float,
                        animal_species: str = 'dog',
                        max_distance: float = 50.0, limit: int = 3) -> list:
-        """Find nearest veterinary hospitals factoring in operating hours and specialization"""
+        """Find nearest veterinary hospitals factoring in operating hours and specialization (Finding 3 Fix)"""
         try:
             available = self.hospitals_df[
                 self.hospitals_df['available_beds'].astype(int) > 0
@@ -205,6 +215,11 @@ class ResourceFinderAgent:
                     float(row['latitude']), float(row['longitude'])
                 ), axis=1
             )
+            
+            # Finding 3 Fix: Apply a maximum distance cutoff before ranking to filter out absurdly distant options
+            local_hospitals = available[available['distance'] <= max_distance]
+            if not local_hospitals.empty:
+                available = local_hospitals.copy()
             
             available['has_specialization'] = available['specializations'].apply(
                 lambda specs: animal_species.lower() in str(specs).lower()
