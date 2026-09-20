@@ -1,5 +1,5 @@
 """
-Flask backend API for Pet Rescue Operations
+Flask backend API for Safe Havens NGO Rescue Operations
 Handles case creation, agent orchestration, and resource matching
 """
 
@@ -12,13 +12,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 import threading
 
-# Import agents
-from agents.condition_agent import ConditionAgent
-from agents.priority_agent import PriorityAgent
-from agents.resource_finder_agent import ResourceFinderAgent
-from agents.coordinator_agent import CoordinatorAgent
-
-from database.db import Database
+# Import agents with safe fallback for execution context
+try:
+    from agents.condition_agent import ConditionAgent
+    from agents.priority_agent import PriorityAgent
+    from agents.resource_finder_agent import ResourceFinderAgent
+    from agents.coordinator_agent import CoordinatorAgent
+    from database.db import Database
+except ImportError:
+    from backend.agents.condition_agent import ConditionAgent
+    from backend.agents.priority_agent import PriorityAgent
+    from backend.agents.resource_finder_agent import ResourceFinderAgent
+    from backend.agents.coordinator_agent import CoordinatorAgent
+    from backend.database.db import Database
 
 app = Flask(__name__)
 CORS(app)
@@ -311,5 +317,5 @@ def internal_error(e):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
-    print(f"🚀 Starting Pet Rescue API Server on port {port}...")
+    print(f"🚀 Starting Safe Havens Rescue API Server on port {port}...")
     app.run(debug=False, host='0.0.0.0', port=port)
