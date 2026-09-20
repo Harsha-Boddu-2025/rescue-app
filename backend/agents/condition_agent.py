@@ -1,7 +1,3 @@
-"""
-Condition Agent - Uses Google Gemini Vision to analyze animal condition from image
-"""
-
 import os
 from google import genai
 from google.genai import types
@@ -49,10 +45,10 @@ class ConditionAgent:
             prompt = """You are an expert animal rescue coordinator analyzing emergency photos.
 
 Analyze this photo and provide:
-1. SPECIES: Identify the type of animal (dog, cat, bird, reptile, wild animal, etc.)
-2. INJURY_TYPE: Describe the visible injury or condition (fracture, wound, poisoning, stuck, etc.)
-3. SEVERITY: Rate as Critical (immediate life threat), High (serious injury), Medium (moderate), or Low (minor)
-4. CONDITION_NOTES: Brief description of the animal's condition and immediate needs
+1. SPECIES: Identify the type of animal (dog, cat, bird, reptile, wild animal, etc.). If the image does not contain an animal (e.g. a car, landscape, object), explicitly state "None" or "Not an animal".
+2. INJURY_TYPE: Describe the visible injury or condition (fracture, wound, poisoning, stuck, etc., or N/A if not an animal)
+3. SEVERITY: Rate as Critical (immediate life threat), High (serious injury), Medium (moderate), Low (minor), or N/A (if not an animal)
+4. CONDITION_NOTES: Brief description of the animal's condition and immediate needs, or explanation if no animal is detected
 
 Respond ONLY in valid JSON format with these exact keys:
 {
@@ -99,7 +95,8 @@ Respond ONLY in valid JSON format with these exact keys:
                 'critical': 'Critical',
                 'high': 'High',
                 'medium': 'Medium',
-                'low': 'Low'
+                'low': 'Low',
+                'n/a': 'N/A'
             }
             
             severity = result.get('severity', 'High').lower()
