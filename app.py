@@ -1,11 +1,11 @@
 import sys
 from pathlib import Path
 
-# Automatically add the 'backend' folder to system path for package imports
+# Force Python to look inside the 'backend' folder first for package imports
 current_dir = Path(__file__).resolve().parent
 backend_dir = current_dir / "backend"
 if str(backend_dir) not in sys.path:
-    sys.path.append(str(backend_dir))
+    sys.path.insert(0, str(backend_dir))
 
 import streamlit as st
 import os
@@ -26,10 +26,10 @@ except ImportError as e:
     AGENTS_AVAILABLE = False
     IMPORT_ERROR_MSG = str(e)
 
-# Page config
+# Page config with no icon
 st.set_page_config(
-    page_title="🏡 Safe Havens | NGO Rescue Operations",
-    page_icon="🏡",
+    page_title="Safe Havens | NGO Rescue Operations",
+    page_icon=None,
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -242,6 +242,8 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
         st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your environment secrets.")
     elif not AGENTS_AVAILABLE:
         st.error(f"⚠️ Backend agent modules could not be imported: {locals().get('IMPORT_ERROR_MSG', 'Unknown error')}")
+    elif not condition_agent:
+        st.error("⚠️ Condition Agent failed to initialize.")
     else:
         with st.status("🤖 Running Multi-Agent Rescue Pipeline...", expanded=True) as status:
             try:
