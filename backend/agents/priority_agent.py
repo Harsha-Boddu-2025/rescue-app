@@ -126,3 +126,4 @@ def generate_reasoning(priority_level: str, severity: str, species: str, injury_
     reasoning += ". Immediate rescue team dispatch recommended."
     
     return reasoning
+
