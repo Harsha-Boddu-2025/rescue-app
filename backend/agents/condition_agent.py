@@ -14,14 +14,15 @@ class ConditionAgent:
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
-        self.model = "gemini-3.6-flash"  # <-- Updated to the exact model required
+        self.model = "gemini-3.6-flash"  # Exact model required
     
-    def analyze(self, image_path: str, case_data: dict) -> dict:
+    def analyze(self, image_path: str, case_meta: dict) -> dict:
         """Analyze image to determine animal species, injury type, and severity"""
         
         if not self.client:
             print("❌ Condition Agent Error: GEMINI_API_KEY is not set.")
             return {
+                "is_animal": False,
                 "species": "Unknown",
                 "injury_type": "Configuration Error",
                 "severity": "High",
@@ -40,13 +41,15 @@ class ConditionAgent:
             prompt = """You are an expert animal rescue coordinator analyzing emergency photos.
 
 Analyze this photo and provide:
-1. SPECIES: Identify the type of animal (dog, cat, bird, reptile, wild animal, etc.). If the image does not contain an animal (e.g. a car, landscape, object), explicitly state "None" or "Not an animal".
-2. INJURY_TYPE: Describe the visible injury or condition (fracture, wound, poisoning, stuck, etc., or N/A if not an animal)
-3. SEVERITY: Rate as Critical (immediate life threat), High (serious injury), Medium (moderate), Low (minor), or N/A (if not an animal)
-4. CONDITION_NOTES: Brief description of the animal's condition and immediate needs, or explanation if no animal is detected
+1. IS_ANIMAL: boolean (true if a live animal is clearly visible in the image, false if it is a car, landscape, object, or completely unrelated image).
+2. SPECIES: Identify the type of animal (dog, cat, bird, reptile, wild animal, cattle, etc.). If no animal is present, state "None".
+3. INJURY_TYPE: Describe the visible injury or condition (fracture, wound, poisoning, soft-tissue trauma, none visible, etc., or N/A if not an animal).
+4. SEVERITY: Rate as Critical (immediate life threat), High (serious injury), Medium (moderate), Low (minor/healthy), or N/A (if not an animal).
+5. CONDITION_NOTES: Brief description of the animal's condition and immediate needs, or explanation if no animal is detected.
 
 Respond ONLY in valid JSON format with these exact keys:
 {
+    "is_animal": true,
     "species": "string",
     "injury_type": "string", 
     "severity": "string",
@@ -76,10 +79,13 @@ Respond ONLY in valid JSON format with these exact keys:
                 result = json.loads(clean_text)
             
             # Validate required keys
-            required_keys = ['species', 'injury_type', 'severity', 'condition_notes']
+            required_keys = ['is_animal', 'species', 'injury_type', 'severity', 'condition_notes']
             for key in required_keys:
                 if key not in result:
-                    result[key] = "Unknown"
+                    if key == 'is_animal':
+                        result[key] = True
+                    else:
+                        result[key] = "Unknown"
             
             # Normalize severity
             severity_map = {
@@ -93,7 +99,7 @@ Respond ONLY in valid JSON format with these exact keys:
             severity = str(result.get('severity', 'High')).lower()
             result['severity'] = severity_map.get(severity, 'High')
             
-            print(f"✅ Condition Agent Success: {result['species']} - {result['severity']} severity")
+            print(f"✅ Condition Agent Success: Animal Detected={result['is_animal']}, Species={result['species']} - Severity={result['severity']}")
             return result
         
         except Exception as e:
@@ -103,6 +109,7 @@ Respond ONLY in valid JSON format with these exact keys:
             if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                 print("⚠️ Rate limit encountered. Utilizing mock rescue analysis data to proceed.")
                 return {
+                    "is_animal": True,
                     "species": "Dog",
                     "injury_type": "Laceration / Soft Tissue Trauma (Fallback)",
                     "severity": "High",
@@ -110,6 +117,7 @@ Respond ONLY in valid JSON format with these exact keys:
                 }
                 
             return {
+                "is_animal": False,
                 "species": "Unknown Animal",
                 "injury_type": "Unable to analyze",
                 "severity": "High",
