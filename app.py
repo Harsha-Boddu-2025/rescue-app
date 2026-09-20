@@ -34,7 +34,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Modern, Premium Aesthetics & Enhanced Readability
+# Custom CSS for Modern, Premium Aesthetics & Universal High Contrast Readability
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -169,10 +169,11 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* High Contrast Expander Content for Live Dashboard */
-    .streamlit-expanderContent p, 
-    .streamlit-expanderContent span, 
-    .streamlit-expanderContent div {
+    /* 🌟 Fix 1: High Contrast Expander Content for Live Dashboard */
+    div[data-testid="stExpanderDetails"], 
+    div[data-testid="stExpanderDetails"] p, 
+    div[data-testid="stExpanderDetails"] span, 
+    div[data-testid="stExpanderDetails"] div {
         color: #f1f5f9 !important;
     }
 
@@ -181,6 +182,13 @@ st.markdown("""
         border-radius: 10px;
         color: #ffffff !important;
         font-weight: 600 !important;
+    }
+
+    /* 🌟 Fix 2: High Contrast Text Inside Status Execution Widget */
+    div[data-testid="stStatusWidget"],
+    div[data-testid="stStatusWidget"] div,
+    div[data-testid="stStatusWidget"] span {
+        color: #e2e8f0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
