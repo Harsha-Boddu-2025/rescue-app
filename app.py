@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Automatically fix module path so 'agents' and 'database' import correctly
+current_dir = Path(__file__).resolve().parent
+if str(current_dir) not in sys.path:
+    sys.path.append(str(current_dir))
+
 import streamlit as st
 import os
 import time
@@ -5,17 +13,17 @@ from google import genai
 from google.genai import types
 from PIL import Image
 from datetime import datetime
-from pathlib import Path
 
-# Import your actual backend agents
+# Import backend agents safely
 try:
     from agents.condition_agent import ConditionAgent
     from agents.priority_agent import PriorityAgent
     from agents.resource_finder_agent import ResourceFinderAgent
     from agents.coordinator_agent import CoordinatorAgent
     AGENTS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     AGENTS_AVAILABLE = False
+    IMPORT_ERROR_MSG = str(e)
 
 # Page config
 st.set_page_config(
@@ -232,7 +240,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
     elif not os.getenv("GEMINI_API_KEY"):
         st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your environment secrets.")
     elif not AGENTS_AVAILABLE:
-        st.error("⚠️ Backend agent modules could not be imported. Ensure 'agents/' folder is in your working directory.")
+        st.error(f"⚠️ Backend agent modules could not be imported: {locals().get('IMPORT_ERROR_MSG', 'Unknown error')}")
     else:
         with st.status("🤖 Running Multi-Agent Rescue Pipeline...", expanded=True) as status:
             try:
