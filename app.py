@@ -349,23 +349,35 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     'incident_time': incident_time.strftime("%H:%M")
                 }
 
-                # Step 1: Condition Agent with Safe Exception Handling (Finding 4)
+                # Step 1: Condition Agent with Server Busy Handling (503 / 429)
                 st.write("🔍 **[1/4] Condition Agent**: Analyzing animal species & injury via Gemini Vision...")
                 model_failed = False
                 try:
                     condition_result = condition_agent.analyze(temp_img_path, case_meta)
+                    
+                    notes_check = str(condition_result.get('condition_notes', '')).lower()
+                    injury_check = str(condition_result.get('injury_type', '')).lower()
+                    if "503" in notes_check or "unavailable" in notes_check or "429" in notes_check or "error" in injury_check:
+                        st.warning("⚠️ The AI server is currently busy due to high demand. Please wait a moment and try again.")
+                        st.stop()
+                        
                 except Exception as api_err:
-                    print(f"⚠️ Model Exception caught: {str(api_err)}")
-                    condition_result = {
-                        'species': 'Unknown / Unanalyzed',
-                        'injury_type': 'Model Error / Rate Limit',
-                        'condition_notes': f'Model failed due to API limits/errors: {str(api_err)}',
-                        'is_animal': False
-                    }
-                    model_failed = True
+                    err_message = str(api_err).lower()
+                    if "503" in err_message or "429" in err_message or "unavailable" in err_message:
+                        st.warning("⚠️ The AI server is currently busy due to high demand. Please wait a moment and try again.")
+                        st.stop()
+                    else:
+                        print(f"⚠️ Model Exception caught: {str(api_err)}")
+                        condition_result = {
+                            'species': 'Unknown / Unanalyzed',
+                            'injury_type': 'Model Error / Rate Limit',
+                            'condition_notes': f'Model failed due to API limits/errors: {str(api_err)}',
+                            'is_animal': False
+                        }
+                        model_failed = True
                 time.sleep(0.3)
 
-                # Finding 1 & 4 Fix: Check explicit boolean field and model failure state
+                # Finding 1 Fix: Check explicit boolean field
                 is_valid_animal = bool(condition_result.get('is_animal', True)) and not model_failed
 
                 if model_failed:
