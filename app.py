@@ -69,6 +69,12 @@ st.markdown("""
         text-shadow: 0 4px 25px rgba(129, 140, 248, 0.6);
     }
 
+    /* Fix Subheaders (Upload Evidence, Rescue Details, Dashboard, etc.) */
+    h2, h3, .stMarkdown h3, [data-testid="stSubheader"] {
+        color: #f8fafc !important;
+        font-weight: 600 !important;
+    }
+
     .subtitle {
         color: #cbd5e1;
         text-align: center;
@@ -169,7 +175,7 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* 🌟 Fix 1: High Contrast Expander Content for Live Dashboard */
+    /* High Contrast Expander Content for Live Dashboard */
     div[data-testid="stExpanderDetails"], 
     div[data-testid="stExpanderDetails"] p, 
     div[data-testid="stExpanderDetails"] span, 
@@ -184,7 +190,7 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* 🌟 Fix 2: High Contrast Text Inside Status Execution Widget */
+    /* High Contrast Text Inside Status Execution Widget */
     div[data-testid="stStatusWidget"],
     div[data-testid="stStatusWidget"] div,
     div[data-testid="stStatusWidget"] span {
