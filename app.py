@@ -249,16 +249,14 @@ CITY_SUBLOCATIONS = {
     }
 }
 
-# Google Sheet Sync Helper with detailed response logging for troubleshooting
+# Google Sheet Sync Helper with response logging
 def sync_to_google_sheet(case_data):
     web_app_url = "https://script.google.com/macros/s/AKfycbznTlJCMXt6JkuXyHbKMIcKDOYRpLIxDgIEdAY-s0ZAdRBJ0nbGJYCA_7qchB-BqPr8/exec"
     try:
         print(f"📤 Sending data to Google Sheet...")
         response = requests.post(web_app_url, json=case_data, timeout=10, allow_redirects=True)
-        
         print(f"📥 Google Response Status: {response.status_code}")
         print(f"📥 Google Response Text: {response.text}")
-        
         return response.status_code == 200
     except Exception as e:
         print(f"❌ Sheet Sync Exception: {str(e)}")
@@ -351,28 +349,41 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     'incident_time': incident_time.strftime("%H:%M")
                 }
 
-                # Step 1: Condition Agent
+                # Step 1: Condition Agent with Safe Exception Handling (Finding 4)
                 st.write("🔍 **[1/4] Condition Agent**: Analyzing animal species & injury via Gemini Vision...")
-                condition_result = condition_agent.analyze(temp_img_path, case_meta)
+                model_failed = False
+                try:
+                    condition_result = condition_agent.analyze(temp_img_path, case_meta)
+                except Exception as api_err:
+                    print(f"⚠️ Model Exception caught: {str(api_err)}")
+                    condition_result = {
+                        'species': 'Unknown / Unanalyzed',
+                        'injury_type': 'Model Error / Rate Limit',
+                        'condition_notes': f'Model failed due to API limits/errors: {str(api_err)}',
+                        'is_animal': False
+                    }
+                    model_failed = True
                 time.sleep(0.3)
 
-                # Abstention check
-                species = condition_result.get('species', '').lower()
-                injury = condition_result.get('injury_type', '').lower()
-                is_valid_animal = not any(kw in species or kw in injury for kw in ["none", "not an animal", "n/a", "unknown animal"])
+                # Finding 1 & 4 Fix: Check explicit boolean field and model failure state
+                is_valid_animal = bool(condition_result.get('is_animal', True)) and not model_failed
 
-                # Step 2: Priority Agent
-                st.write("⚡ **[2/4] Priority Agent**: Evaluating urgency score and injury severity level...")
-                priority_result = priority_agent.assess(condition_result)
-                severity_level = priority_result.get('priority_level', 'High')
-                score = priority_result.get('priority_score', 75)
+                if model_failed:
+                    severity_level = "Needs Human Review"
+                    score = 0
+                else:
+                    # Step 2: Priority Agent
+                    st.write("⚡ **[2/4] Priority Agent**: Evaluating urgency score and injury severity level...")
+                    priority_result = priority_agent.assess(condition_result)
+                    severity_level = priority_result.get('priority_level', 'High')
+                    score = priority_result.get('priority_score', 75)
                 time.sleep(0.3)
 
                 # Step 3: Resource Finder Agent
                 st.write(f"📍 **[3/4] Resource Finder Agent**: Querying local resources for {incident_time.strftime('%I:%M %p')} dispatch...")
                 subloc_coords = CITY_SUBLOCATIONS.get(city_name, {}).get(selected_subloc, {"lat": 12.9716, "lng": 77.5946})
                 
-                if is_valid_animal and severity_level != "N/A":
+                if is_valid_animal and severity_level != "N/A" and not model_failed:
                     resource_result = resource_finder.match_resources(
                         latitude=subloc_coords["lat"],
                         longitude=subloc_coords["lng"],
@@ -389,7 +400,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 veh_id = resource_result.get('vehicle', {}).get('id') if resource_result.get('vehicle') else 201
                 hosp_id = resource_result.get('hospital', {}).get('id') if resource_result.get('hospital') else 301
 
-                if is_valid_animal and severity_level != "N/A":
+                if is_valid_animal and severity_level != "N/A" and not model_failed:
                     coordinator_result = coordinator_agent.assign_mission(
                         case_id=case_id,
                         volunteer_id=vol_id,
@@ -399,9 +410,12 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     )
                     mission_id = coordinator_result.get('mission_id', f"M-{case_id}")
                     status.update(label="🎉 Multi-Agents Executed Successfully! Mission Dispatched.", state="complete", expanded=False)
+                elif model_failed:
+                    mission_id = "REVIEW-NEEDED"
+                    status.update(label="⚠️ Model Failure: Case flagged for manual coordinator review.", state="error", expanded=False)
                 else:
                     mission_id = "ABSTAINED-00"
-                    status.update(label="⚠️ Abstention Triggered: No animal detected. Rescue dispatch skipped.", state="error", expanded=False)
+                    status.update(label="⚠️ Abstention Triggered: No valid animal detected. Rescue dispatch skipped.", state="error", expanded=False)
 
                 v_data = resource_result.get('volunteer')
                 veh_data = resource_result.get('vehicle')
@@ -413,6 +427,13 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
 
                 hosp_lat = h_data.get('latitude', subloc_coords['lat'] + 0.05) if h_data else subloc_coords['lat'] + 0.05
                 hosp_lng = h_data.get('longitude', subloc_coords['lng'] + 0.05) if h_data else subloc_coords['lng'] + 0.05
+
+                if model_failed:
+                    case_status = "Needs Human Review (API Error)"
+                elif is_valid_animal and severity_level != "N/A":
+                    case_status = "Dispatched / Active"
+                else:
+                    case_status = "Abstained / Cancelled"
 
                 case = {
                     "id": len(st.session_state.cases) + 1,
@@ -435,7 +456,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     "vehicle": assigned_vehicle,
                     "hospital": assigned_hospital,
                     "date": datetime.now().strftime("%b %d, %Y"),
-                    "status": "Dispatched / Active" if (is_valid_animal and severity_level != "N/A") else "Abstained / Cancelled"
+                    "status": case_status
                 }
                 
                 st.session_state.cases.append(case)
@@ -444,7 +465,12 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 st.markdown("---")
                 st.subheader("📋 Final Rescue Summary")
                 
-                if is_valid_animal and severity_level != "N/A":
+                if model_failed:
+                    st.markdown(f'''<div class="analysis-box" style="border-left-color: #f59e0b;">
+                        <b>⚠️ Review Required (Model Exception):</b> Gemini API encountered an error. Auto-dispatch has been blocked. Coordinator notified for manual review.<br><br>
+                        {case["analysis"]}
+                    </div>''', unsafe_allow_html=True)
+                elif is_valid_animal and severity_level != "N/A":
                     st.markdown(f'''<div class="analysis-box">
                         <b>Mission ID:</b> {mission_id} <br>
                         <b>Incident Time:</b> {case["time"]} <br>
@@ -456,7 +482,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     </div>''', unsafe_allow_html=True)
                 else:
                     st.markdown(f'''<div class="analysis-box" style="border-left-color: #f43f5e;">
-                        <b>⚠️ Abstention Notice:</b> No animal detected in the uploaded image. Resource dispatch and emergency alerts have been bypassed.<br><br>
+                        <b>⚠️ Abstention Notice:</b> No valid animal detected in the uploaded image. Resource dispatch and emergency alerts have been bypassed.<br><br>
                         {case["analysis"]}
                     </div>''', unsafe_allow_html=True)
                 
