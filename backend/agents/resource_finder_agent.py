@@ -1,10 +1,11 @@
 """
-Resource Finder Agent - Matches volunteers, vehicles, and hospitals
+Resource Finder Agent - Matches volunteers, vehicles, and hospitals with time-aware routing
 """
 
 import math
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
 
 class ResourceFinderAgent:
     """Finds and matches best rescue resources"""
@@ -120,7 +121,7 @@ class ResourceFinderAgent:
         
         try:
             available = self.volunteers_df[
-                self.volunteers_df['availability'].astype(str) == 'true'
+                self.volunteers_df['availability'].astype(str).str.lower() == 'true'
             ].copy()
             
             # Calculate distances
@@ -160,7 +161,7 @@ class ResourceFinderAgent:
         
         try:
             available = self.vehicles_df[
-                self.vehicles_df['status'].astype(str) == 'available'
+                self.vehicles_df['status'].astype(str).str.lower() == 'available'
             ].copy()
             
             # Calculate distances
@@ -173,7 +174,7 @@ class ResourceFinderAgent:
             
             # Priority: ambulance > van > pickup
             type_priority = {'ambulance': 0, 'van': 1, 'pickup': 2}
-            available['type_priority'] = available['type'].map(type_priority)
+            available['type_priority'] = available['type'].map(type_priority).fillna(3)
             
             # Filter and sort
             available = available[available['distance'] <= max_distance]
@@ -201,15 +202,14 @@ class ResourceFinderAgent:
     def _find_hospitals(self, latitude: float, longitude: float,
                        animal_species: str = 'dog',
                        max_distance: float = 25, limit: int = 3) -> list:
-        """Find nearest veterinary hospitals"""
+        """Find nearest veterinary hospitals factoring in operating hours"""
         
         try:
-            # Filter hospitals with available beds
             available = self.hospitals_df[
                 self.hospitals_df['available_beds'].astype(int) > 0
             ].copy()
             
-            # Calculate distances
+            # Calculate raw Haversine distances
             available['distance'] = available.apply(
                 lambda row: self._calculate_distance(
                     latitude, longitude,
@@ -217,18 +217,38 @@ class ResourceFinderAgent:
                 ), axis=1
             )
             
-            # Check for specialization
+            # Check specialization
             available['has_specialization'] = available['specializations'].apply(
                 lambda specs: animal_species.lower() in str(specs).lower()
             )
             
-            # Emergency priority
-            available['is_emergency'] = available['emergency_24h'].astype(str) == 'true'
+            # Check 24/7 emergency status
+            available['is_emergency'] = available['emergency_24h'].astype(str).str.lower() == 'true'
             
-            # Filter and sort
-            available = available[available['distance'] <= max_distance]
+            # 🕒 Operational Hour Penalty Logic
+            current_hour = datetime.now().hour
+            
+            def calculate_time_penalty(row):
+                if row['is_emergency']:
+                    return 0.0  # Zero penalty for 24/7 emergency hospitals
+                
+                hours_str = str(row['operation_hours']).lower()
+                if '24/7' in hours_str:
+                    return 0.0
+                
+                # If it's night time (before 8 AM or after 9 PM) and not 24/7, penalize heavily
+                if current_hour < 8 or current_hour > 21:
+                    return 50.0  # Heavy penalty to deprioritize closed daytime clinics at night
+                
+                return 10.0  # Moderate penalty for non-24/7 clinics during daytime
+
+            available['time_penalty'] = available.apply(calculate_time_penalty, axis=1)
+            available['effective_distance'] = available['distance'] + available['time_penalty']
+            
+            # Filter by max distance (using effective distance cap) and sort
+            available = available[available['effective_distance'] <= (max_distance + 40)]
             available = available.sort_values(
-                by=['has_specialization', 'is_emergency', 'distance'],
+                by=['has_specialization', 'is_emergency', 'effective_distance'],
                 ascending=[False, False, True]
             )
             
@@ -241,16 +261,17 @@ class ResourceFinderAgent:
                     'city': str(h['city']),
                     'phone': str(h['phone']),
                     'distance': round(float(h['distance']), 1),
+                    'effective_distance': round(float(h['effective_distance']), 1),
                     'specializations': str(h['specializations']).split(';'),
                     'available_beds': int(h['available_beds']),
-                    'emergency_24h': h['emergency_24h'].astype(str) == 'true',
+                    'emergency_24h': str(h['emergency_24h']).lower() == 'true',
                     'operation_hours': str(h['operation_hours'])
                 })
             
             return results
         
         except Exception as e:
-            print(f"Error finding hospitals: {str(e)}")
+            print(f"Error finding hospitals with time constraints: {str(e)}")
             return []
     
     def _calculate_score(self, volunteer, vehicle, hospital) -> int:
@@ -263,9 +284,9 @@ class ResourceFinderAgent:
         volunteer_score = 80  # Found suitable volunteer
         vehicle_score = 75    # Found suitable vehicle
         
-        # Distance factor (max 60km for 0 points)
-        avg_distance = (volunteer['distance'] + vehicle['distance'] + 
-                       hospital['distance']) / 3
+        # Distance factor using effective distance if available
+        hosp_dist = hospital.get('effective_distance', hospital['distance'])
+        avg_distance = (volunteer['distance'] + vehicle['distance'] + hosp_dist) / 3
         distance_score = max(0, 100 - (avg_distance * 1.5))
         
         # Final score
