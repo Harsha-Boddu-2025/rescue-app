@@ -5,11 +5,22 @@ from google import genai
 from google.genai import types
 from PIL import Image
 from datetime import datetime
+from pathlib import Path
+
+# Import your actual backend agents
+try:
+    from agents.condition_agent import ConditionAgent
+    from agents.priority_agent import PriorityAgent
+    from agents.resource_finder_agent import ResourceFinderAgent
+    from agents.coordinator_agent import CoordinatorAgent
+    AGENTS_AVAILABLE = True
+except ImportError:
+    AGENTS_AVAILABLE = False
 
 # Page config
 st.set_page_config(
-    page_title="🐾 SafePaws | Pet Rescue Operations",
-    page_icon="🐾",
+    page_title="🏡 Safe Havens | NGO Rescue Operations",
+    page_icon="🏡",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -29,7 +40,6 @@ st.markdown("""
         min-height: 100vh;
     }
 
-    /* Hide empty column containers and empty glass cards */
     div[data-testid="column"]:empty,
     .glass-card:empty {
         display: none !important;
@@ -57,7 +67,6 @@ st.markdown("""
         font-weight: 400;
     }
 
-    /* Glassmorphism Cards */
     .glass-card {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(16px);
@@ -69,7 +78,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* Form Elements styling inside Streamlit */
     .stTextInput input, .stSelectbox select, .stTextArea textarea {
         background: rgba(15, 23, 42, 0.6) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
@@ -88,7 +96,6 @@ st.markdown("""
         font-weight: 500 !important;
     }
 
-    /* Custom Gradient Button */
     .stButton > button {
         background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
         color: white;
@@ -107,7 +114,6 @@ st.markdown("""
         box-shadow: 0 15px 30px rgba(99, 102, 241, 0.6);
     }
 
-    /* Analysis Result Box */
     .analysis-box {
         background: rgba(15, 23, 42, 0.8);
         border: 1px solid rgba(99, 102, 241, 0.3);
@@ -119,7 +125,6 @@ st.markdown("""
         line-height: 1.6;
     }
 
-    /* Metric Cards */
     .metric-container {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -156,23 +161,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Safe Gemini Client Initialization
-@st.cache_resource
-def get_client():
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return None
-    return genai.Client(api_key=api_key)
+# Exact NGO Hub City Latitude & Longitude Mapping Database
+CITY_COORDS = {
+    "Hyderabad": {"lat": 17.3850, "lng": 78.4867},
+    "Rajahmundry": {"lat": 17.0005, "lng": 81.8040},
+    "Visakhapatnam": {"lat": 17.6868, "lng": 83.2185},
+    "Kolkata": {"lat": 22.5726, "lng": 88.3639},
+    "Vizianagaram": {"lat": 18.1124, "lng": 83.4157}
+}
 
-client = get_client()
+# Initialize Agents safely
+@st.cache_resource
+def init_agents():
+    if AGENTS_AVAILABLE:
+        return ConditionAgent(), PriorityAgent(), ResourceFinderAgent(), CoordinatorAgent()
+    return None, None, None, None
+
+condition_agent, priority_agent, resource_finder, coordinator_agent = init_agents()
 
 # Initialize session state
 if "cases" not in st.session_state:
     st.session_state.cases = []
 
 # Header Section
-st.markdown("<h1>🐾 SafePaws</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>AI-Powered Emergency Animal Rescue & Response System</p>", unsafe_allow_html=True)
+st.markdown("<h1>🏡 Safe Havens</h1>", unsafe_allow_html=True)
+st.markdown("<p class='subtitle'>AI-Powered NGO Emergency Animal Rescue & Sanctuary Coordination Platform</p>", unsafe_allow_html=True)
 
 # Main layout split
 col1, col2 = st.columns([1, 1], gap="large")
@@ -185,10 +198,13 @@ with col1:
     if uploaded_file:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Animal Photo", use_container_width=True)
-        image_bytes = uploaded_file.getvalue()
+        os.makedirs("uploads", exist_ok=True)
+        temp_img_path = os.path.join("uploads", uploaded_file.name)
+        with open(temp_img_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
     else:
         st.info("💡 Tip: Upload a well-lit photo showing any injuries clearly for better AI triage.")
-        image_bytes = None
+        temp_img_path = None
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
@@ -199,11 +215,11 @@ with col2:
     phone = st.text_input("Phone Number", placeholder="9876543210")
     email = st.text_input("Email Address", placeholder="jane@example.com")
     
-    city = st.selectbox("City", [
-        "🏙️ Bangalore", "🌆 Mumbai", "🏛️ Delhi", "🌃 Hyderabad",
-        "🏖️ Chennai", "🌉 Kolkata", "⛰️ Pune", "🏰 Jaipur",
-        "🌇 Ahmedabad", "🎢 Lucknow"
+    selected_city_display = st.selectbox("NGO Hub City", [
+        "🏙️ Hyderabad", "🌊 Rajahmundry", "⚓ Visakhapatnam", 
+        "🌉 Kolkata", "🏰 Vizianagaram"
     ])
+    city_name = selected_city_display.split(" ")[1]
     
     address = st.text_area("Exact Location / Landmark", placeholder="e.g., Near Central Park gate, street #4", height=80)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -211,84 +227,96 @@ with col2:
 # Action button
 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=True):
-    if not all([name, phone, email, address, image_bytes]):
+    if not all([name, phone, email, address, temp_img_path]):
         st.error("⚠️ Please fill out all required fields and upload a photo.")
-    elif not client:
-        st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your deployment secrets.")
+    elif not os.getenv("GEMINI_API_KEY"):
+        st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your environment secrets.")
+    elif not AGENTS_AVAILABLE:
+        st.error("⚠️ Backend agent modules could not be imported. Ensure 'agents/' folder is in your working directory.")
     else:
         with st.status("🤖 Running Multi-Agent Rescue Pipeline...", expanded=True) as status:
             try:
-                # Step 1: Condition Agent
-                st.write("🔍 **[1/4] Condition Agent**: Invoking Gemini Vision to analyze animal species & injury severity...")
-                response = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=[
-                        types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg'),
-                        """Analyze this rescue animal image and provide a structured report with:
-1. Species / Animal Type
-2. Visible Injuries or Medical Conditions
-3. Triage Severity Level (Critical / High / Medium / Low)
-4. Recommended Immediate Action"""
-                    ]
-                )
-                analysis_text = response.text
-                time.sleep(0.4)
+                case_id = f"C-{len(st.session_state.cases) + 1}"
+                case_meta = {'city': city_name, 'street_address': address}
 
-                # 🛡️ Abstention Check
-                analysis_lower = analysis_text.lower()
-                is_valid_animal = not any(keyword in analysis_lower for keyword in [
-                    "none detected", "no animal", "not an animal", "not applicable", "n/a (no animal"
-                ])
+                # Step 1: Condition Agent
+                st.write("🔍 **[1/4] Condition Agent**: Analyzing animal species & injury via Gemini Vision...")
+                condition_result = condition_agent.analyze(temp_img_path, case_meta)
+                time.sleep(0.3)
+
+                # Abstention check
+                species = condition_result.get('species', '').lower()
+                injury = condition_result.get('injury_type', '').lower()
+                is_valid_animal = not any(kw in species or kw in injury for kw in ["none", "not an animal", "n/a", "unknown animal"])
 
                 # Step 2: Priority Agent
                 st.write("⚡ **[2/4] Priority Agent**: Evaluating urgency score and injury severity level...")
-                if is_valid_animal:
-                    severity_level = "Critical" if "Critical" in analysis_text else "High"
-                    score = 95 if severity_level == "Critical" else 75
-                else:
-                    severity_level = "N/A"
-                    score = 0
-                time.sleep(0.4)
+                priority_result = priority_agent.assess(condition_result)
+                severity_level = priority_result.get('priority_level', 'High')
+                score = priority_result.get('priority_score', 75)
+                time.sleep(0.3)
 
-                # Step 3: Resource Finder Agent
-                st.write("📍 **[3/4] Resource Finder Agent**: Running Haversine geo-matching for volunteers & hospitals...")
-                if is_valid_animal:
-                    assigned_volunteer = "Rahul Sharma (2.4 km away)"
-                    assigned_vehicle = "Ambulance - KA-01-AB-1234 (3.1 km away)"
-                    assigned_hospital = "City Veterinary Emergency Care (4.5 km away, 24/7)"
+                # Step 3: Resource Finder Agent (Haversine Geo-Matching with CSVs)
+                st.write("📍 **[3/4] Resource Finder Agent**: Querying CSV datasets via Haversine distance & operating hours...")
+                coords = CITY_COORDS.get(city_name, {"lat": 17.3850, "lng": 78.4867})
+                
+                if is_valid_animal and severity_level != "N/A":
+                    resource_result = resource_finder.match_resources(
+                        latitude=coords["lat"],
+                        longitude=coords["lng"],
+                        animal_species=condition_result.get('species', 'dog'),
+                        injury_severity=severity_level
+                    )
                 else:
-                    assigned_volunteer = "None (Abstained - No animal detected)"
-                    assigned_vehicle = "None"
-                    assigned_hospital = "None"
-                time.sleep(0.4)
+                    resource_result = {'volunteer': None, 'vehicle': None, 'hospital': None}
+                time.sleep(0.3)
 
                 # Step 4: Coordinator Agent
-                st.write("📱 **[4/4] Coordinator Agent**: Allocating mission ID and dispatching automated alerts...")
-                mission_id = f"M-{len(st.session_state.cases) + 1001}" if is_valid_animal else "ABSTAINED-00"
-                time.sleep(0.3)
-                
-                if is_valid_animal:
-                    status.update(label="🎉 All Multi-Agents Executed Successfully! Mission Dispatched.", state="complete", expanded=False)
+                st.write("📱 **[4/4] Coordinator Agent**: Generating mission ID and dispatching automated alerts...")
+                vol_id = resource_result.get('volunteer', {}).get('id') if resource_result.get('volunteer') else 101
+                veh_id = resource_result.get('vehicle', {}).get('id') if resource_result.get('vehicle') else 201
+                hosp_id = resource_result.get('hospital', {}).get('id') if resource_result.get('hospital') else 301
+
+                if is_valid_animal and severity_level != "N/A":
+                    coordinator_result = coordinator_agent.assign_mission(
+                        case_id=case_id,
+                        volunteer_id=vol_id,
+                        vehicle_id=veh_id,
+                        hospital_id=hosp_id,
+                        case_data=case_meta
+                    )
+                    mission_id = coordinator_result.get('mission_id', f"M-{case_id}")
+                    status.update(label="🎉 Multi-Agents Executed Successfully! Mission Dispatched.", state="complete", expanded=False)
                 else:
+                    mission_id = "ABSTAINED-00"
                     status.update(label="⚠️ Abstention Triggered: No animal detected. Rescue dispatch skipped.", state="error", expanded=False)
 
-                # Save case data
+                # Format Assigned Resource Strings for Display
+                v_data = resource_result.get('volunteer')
+                veh_data = resource_result.get('vehicle')
+                h_data = resource_result.get('hospital')
+
+                assigned_volunteer = f"{v_data['name']} ({v_data['distance']} km away, Ph: {v_data['phone']})" if v_data else "None"
+                assigned_vehicle = f"{v_data.get('type', 'Ambulance')} - Reg: {veh_data['registration']} ({veh_data['distance']} km away)" if veh_data else "None"
+                assigned_hospital = f"{h_data['name']} ({h_data['effective_distance']} km away, Beds: {h_data['available_beds']})" if h_data else "None"
+
+                # Save case data to session state
                 case = {
                     "id": len(st.session_state.cases) + 1,
                     "mission_id": mission_id,
                     "name": name,
                     "phone": phone,
                     "email": email,
-                    "city": city.split(" ")[1],
+                    "city": city_name,
                     "address": address,
-                    "analysis": analysis_text,
+                    "analysis": f"**Species:** {condition_result.get('species')}\n\n**Injury:** {condition_result.get('injury_type')}\n\n**Notes:** {condition_result.get('condition_notes')}",
                     "severity": severity_level,
                     "score": score,
                     "volunteer": assigned_volunteer,
                     "vehicle": assigned_vehicle,
                     "hospital": assigned_hospital,
                     "date": datetime.now().strftime("%b %d, %Y - %H:%M"),
-                    "status": "📍 Dispatched / Active" if is_valid_animal else "🚫 Abstained / Cancelled"
+                    "status": "📍 Dispatched / Active" if (is_valid_animal and severity_level != "N/A") else "🚫 Abstained / Cancelled"
                 }
                 
                 st.session_state.cases.append(case)
@@ -296,18 +324,19 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 st.markdown("---")
                 st.subheader("📋 Final Rescue Summary")
                 
-                if is_valid_animal:
+                if is_valid_animal and severity_level != "N/A":
                     st.markdown(f'''<div class="analysis-box">
                         <b>Mission ID:</b> {mission_id} <br>
                         <b>Urgency Score:</b> {score}/100 ({severity_level})<br>
                         <b>Assigned Volunteer:</b> {assigned_volunteer}<br>
-                        <b>Assigned Hospital:</b> {assigned_hospital}<br><br>
-                        {analysis_text}
+                        <b>Assigned Vehicle:</b> {assigned_vehicle}<br>
+                        <b>Assigned Haven / Hospital:</b> {assigned_hospital}<br><br>
+                        {case["analysis"]}
                     </div>''', unsafe_allow_html=True)
                 else:
                     st.markdown(f'''<div class="analysis-box" style="border-left-color: #f43f5e;">
                         <b>⚠️ Abstention Notice:</b> No animal detected in the uploaded image. Resource dispatch and emergency alerts have been bypassed.<br><br>
-                        {analysis_text}
+                        {case["analysis"]}
                     </div>''', unsafe_allow_html=True)
                 
             except Exception as e:
@@ -317,7 +346,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
 st.markdown("<br>", unsafe_allow_html=True)
 
 # Dashboard Section
-st.subheader("📊 Live Incident Dashboard")
+st.subheader("📊 Live NGO Incident Dashboard")
 
 if not st.session_state.cases:
     st.info("📭 No reports logged in this session yet. Submit one above to test the dashboard!")
@@ -333,11 +362,11 @@ else:
         ''', unsafe_allow_html=True)
         
     with m2:
-        critical_count = sum(1 for c in st.session_state.cases if "Critical" in c["analysis"])
+        critical_count = sum(1 for c in st.session_state.cases if c["severity"] in ["Critical", "High"])
         st.markdown(f'''
         <div class="metric-container">
             <div class="metric-val" style="color: #f43f5e;">{critical_count}</div>
-            <div class="metric-lbl">Critical Cases</div>
+            <div class="metric-lbl">Critical / High Cases</div>
         </div>
         ''', unsafe_allow_html=True)
         
@@ -366,7 +395,7 @@ else:
                 st.write(f"**📍 Landmark:** {case['address']}")
                 st.write(f"**🧑‍🤝‍🧑 Assigned Volunteer:** {case.get('volunteer', 'N/A')}")
                 st.write(f"**🚑 Assigned Vehicle:** {case.get('vehicle', 'N/A')}")
-                st.write(f"**🏥 Assigned Hospital:** {case.get('hospital', 'N/A')}")
+                st.write(f"**🏥 Assigned Haven:** {case.get('hospital', 'N/A')}")
                 st.markdown(f"**🤖 AI Triage Assessment:**\n\n{case['analysis']}")
             with col_b:
                 st.markdown(f'<div class="status-pill">{case["status"]}</div>', unsafe_allow_html=True)
@@ -374,6 +403,6 @@ else:
 # Footer
 st.markdown("""
 <div style='text-align: center; color: #64748b; font-size: 0.9em; padding: 40px 0 20px 0;'>
-    🐾 SafePaws Rescue Operations Platform • Powered by Google Gemini AI
+    🏡 Safe Havens NGO Rescue Network • Powered by Google Gemini AI
 </div>
 """, unsafe_allow_html=True)
