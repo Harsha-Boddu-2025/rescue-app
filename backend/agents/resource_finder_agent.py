@@ -20,18 +20,7 @@ class ResourceFinderAgent:
     
     def match_resources(self, latitude: float, longitude: float,
                         animal_species: str, injury_severity: str) -> dict:
-        """
-        Match best volunteer, vehicle, and hospital for rescue
-        
-        Args:
-            latitude: Case latitude
-            longitude: Case longitude
-            animal_species: Type of animal
-            injury_severity: Severity level
-        
-        Returns:
-            dict: Matched resources with scores
-        """
+        """Match best volunteer, vehicle, and hospital for rescue"""
         
         try:
             # 🛡️ Abstention Check: If no animal was detected, skip resource matching
@@ -99,9 +88,7 @@ class ResourceFinderAgent:
     def _calculate_distance(self, lat1: float, lon1: float, 
                            lat2: float, lon2: float) -> float:
         """Calculate distance between two coordinates (km)"""
-        
         R = 6371  # Earth's radius in km
-        
         lat1_rad = math.radians(lat1)
         lat2_rad = math.radians(lat2)
         delta_lat = math.radians(lat2 - lat1)
@@ -112,17 +99,18 @@ class ResourceFinderAgent:
             math.sin(delta_lon / 2) ** 2
         
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        
         return R * c
     
     def _find_volunteers(self, latitude: float, longitude: float,
-                        max_distance: float = 15, limit: int = 3) -> list:
-        """Find nearest available volunteers"""
-        
+                        max_distance: float = 50.0, limit: int = 3) -> list:
+        """Find nearest available volunteers with fallback to absolute closest"""
         try:
             available = self.volunteers_df[
                 self.volunteers_df['availability'].astype(str).str.lower() == 'true'
             ].copy()
+            
+            if available.empty:
+                return []
             
             # Calculate distances
             available['distance'] = available.apply(
@@ -132,8 +120,7 @@ class ResourceFinderAgent:
                 ), axis=1
             )
             
-            # Filter by distance and sort
-            available = available[available['distance'] <= max_distance]
+            # Sort by distance (closest first)
             available = available.sort_values('distance')
             
             # Format results
@@ -156,13 +143,15 @@ class ResourceFinderAgent:
             return []
     
     def _find_vehicles(self, latitude: float, longitude: float,
-                      max_distance: float = 20, limit: int = 3) -> list:
-        """Find nearest available vehicles"""
-        
+                      max_distance: float = 50.0, limit: int = 3) -> list:
+        """Find nearest available vehicles with type priority and distance sorting"""
         try:
             available = self.vehicles_df[
                 self.vehicles_df['status'].astype(str).str.lower() == 'available'
             ].copy()
+            
+            if available.empty:
+                return []
             
             # Calculate distances
             available['distance'] = available.apply(
@@ -176,11 +165,9 @@ class ResourceFinderAgent:
             type_priority = {'ambulance': 0, 'van': 1, 'pickup': 2}
             available['type_priority'] = available['type'].map(type_priority).fillna(3)
             
-            # Filter and sort
-            available = available[available['distance'] <= max_distance]
+            # Sort by priority then distance
             available = available.sort_values(['type_priority', 'distance'])
             
-            # Format results
             results = []
             for _, v in available.head(limit).iterrows():
                 results.append({
@@ -201,13 +188,15 @@ class ResourceFinderAgent:
     
     def _find_hospitals(self, latitude: float, longitude: float,
                        animal_species: str = 'dog',
-                       max_distance: float = 25, limit: int = 3) -> list:
-        """Find nearest veterinary hospitals factoring in operating hours"""
-        
+                       max_distance: float = 50.0, limit: int = 3) -> list:
+        """Find nearest veterinary hospitals factoring in operating hours and specialization"""
         try:
             available = self.hospitals_df[
                 self.hospitals_df['available_beds'].astype(int) > 0
             ].copy()
+            
+            if available.empty:
+                return []
             
             # Calculate raw Haversine distances
             available['distance'] = available.apply(
@@ -217,42 +206,28 @@ class ResourceFinderAgent:
                 ), axis=1
             )
             
-            # Check specialization
             available['has_specialization'] = available['specializations'].apply(
                 lambda specs: animal_species.lower() in str(specs).lower()
             )
-            
-            # Check 24/7 emergency status
             available['is_emergency'] = available['emergency_24h'].astype(str).str.lower() == 'true'
             
-            # 🕒 Operational Hour Penalty Logic
             current_hour = datetime.now().hour
             
             def calculate_time_penalty(row):
-                if row['is_emergency']:
-                    return 0.0  # Zero penalty for 24/7 emergency hospitals
-                
-                hours_str = str(row['operation_hours']).lower()
-                if '24/7' in hours_str:
+                if row['is_emergency'] or '24/7' in str(row['operation_hours']).lower():
                     return 0.0
-                
-                # If it's night time (before 8 AM or after 9 PM) and not 24/7, penalize heavily
                 if current_hour < 8 or current_hour > 21:
-                    return 50.0  # Heavy penalty to deprioritize closed daytime clinics at night
-                
-                return 10.0  # Moderate penalty for non-24/7 clinics during daytime
+                    return 50.0
+                return 10.0
 
             available['time_penalty'] = available.apply(calculate_time_penalty, axis=1)
             available['effective_distance'] = available['distance'] + available['time_penalty']
             
-            # Filter by max distance (using effective distance cap) and sort
-            available = available[available['effective_distance'] <= (max_distance + 40)]
             available = available.sort_values(
                 by=['has_specialization', 'is_emergency', 'effective_distance'],
                 ascending=[False, False, True]
             )
             
-            # Format results
             results = []
             for _, h in available.head(limit).iterrows():
                 results.append({
@@ -276,20 +251,15 @@ class ResourceFinderAgent:
     
     def _calculate_score(self, volunteer, vehicle, hospital) -> int:
         """Calculate overall matching score"""
-        
         if not (volunteer and vehicle and hospital):
             return 0
         
-        # Component scores
-        volunteer_score = 80  # Found suitable volunteer
-        vehicle_score = 75    # Found suitable vehicle
+        volunteer_score = 80
+        vehicle_score = 75
         
-        # Distance factor using effective distance if available
         hosp_dist = hospital.get('effective_distance', hospital['distance'])
         avg_distance = (volunteer['distance'] + vehicle['distance'] + hosp_dist) / 3
         distance_score = max(0, 100 - (avg_distance * 1.5))
         
-        # Final score
         final_score = int((volunteer_score + vehicle_score + distance_score) / 3)
-        
         return max(0, min(100, final_score))
