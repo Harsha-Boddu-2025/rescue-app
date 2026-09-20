@@ -34,7 +34,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Modern, Premium Aesthetics & Hiding Empty Containers
+# Custom CSS for Modern, Premium Aesthetics & Enhanced Readability
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -58,14 +58,15 @@ st.markdown("""
         display: none;
     }
 
+    /* Fixed High Contrast Title Header */
     h1 {
-        color: #ffffff;
+        color: #f8fafc !important;
         text-align: center;
         font-weight: 700;
-        font-size: 2.8rem;
+        font-size: 3rem;
         letter-spacing: -0.02em;
         margin-bottom: 0px;
-        text-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        text-shadow: 0 4px 25px rgba(129, 140, 248, 0.6);
     }
 
     .subtitle {
@@ -124,8 +125,8 @@ st.markdown("""
     }
 
     .analysis-box {
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(99, 102, 241, 0.3);
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(99, 102, 241, 0.4);
         border-left: 5px solid #6366f1;
         padding: 20px;
         border-radius: 14px;
@@ -167,6 +168,20 @@ st.markdown("""
         font-weight: 600;
         display: inline-block;
     }
+
+    /* High Contrast Expander Content for Live Dashboard */
+    .streamlit-expanderContent p, 
+    .streamlit-expanderContent span, 
+    .streamlit-expanderContent div {
+        color: #f1f5f9 !important;
+    }
+
+    .streamlit-expanderHeader {
+        background: rgba(255, 255, 255, 0.04) !important;
+        border-radius: 10px;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -198,7 +213,7 @@ condition_agent, priority_agent, resource_finder, coordinator_agent = init_agent
 if "cases" not in st.session_state:
     st.session_state.cases = []
 
-# Header Section
+# Header Section with House Emoji & Crisp White Title
 st.markdown("<h1>🏡 Safe Havens</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>AI-Powered NGO Emergency Animal Rescue & Sanctuary Coordination Platform</p>", unsafe_allow_html=True)
 
