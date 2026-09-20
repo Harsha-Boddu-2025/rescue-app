@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import pandas as pd
 
 # Force Python to look inside the 'backend' folder first for package imports
 current_dir = Path(__file__).resolve().parent
@@ -34,7 +35,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Modern, Premium Aesthetics & Universal High Contrast Readability
+# Custom CSS for Modern, Premium Aesthetics, Pulsing Indicator, & High Contrast Readability
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -69,7 +70,7 @@ st.markdown("""
         text-shadow: 0 4px 25px rgba(129, 140, 248, 0.6);
     }
 
-    /* Fix Subheaders (Upload Evidence, Rescue Details, Dashboard, etc.) */
+    /* Fix Subheaders */
     h2, h3, .stMarkdown h3, [data-testid="stSubheader"] {
         color: #f8fafc !important;
         font-weight: 600 !important;
@@ -164,10 +165,28 @@ st.markdown("""
         margin-top: 5px;
     }
 
+    /* Live Pulsing Status Indicator */
+    @keyframes pulse-glow {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    
+    .live-pulse {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #10b981;
+        border-radius: 50%;
+        animation: pulse-glow 2s infinite;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
     .status-pill {
-        background: rgba(99, 102, 241, 0.2);
-        color: #c7d2fe;
-        border: 1px solid rgba(99, 102, 241, 0.4);
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
         padding: 6px 14px;
         border-radius: 30px;
         font-size: 0.85rem;
@@ -355,6 +374,8 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     "email": email,
                     "city": city_name,
                     "address": address,
+                    "lat": coords["lat"],
+                    "lng": coords["lng"],
                     "analysis": f"**Species:** {condition_result.get('species')}\n\n**Injury:** {condition_result.get('injury_type')}\n\n**Notes:** {condition_result.get('condition_notes')}",
                     "severity": severity_level,
                     "score": score,
@@ -362,7 +383,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     "vehicle": assigned_vehicle,
                     "hospital": assigned_hospital,
                     "date": datetime.now().strftime("%b %d, %Y - %H:%M"),
-                    "status": "📍 Dispatched / Active" if (is_valid_animal and severity_level != "N/A") else "🚫 Abstained / Cancelled"
+                    "status": "Dispatched / Active" if (is_valid_animal and severity_level != "N/A") else "Abstained / Cancelled"
                 }
                 
                 st.session_state.cases.append(case)
@@ -376,7 +397,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                         <b>Urgency Score:</b> {score}/100 ({severity_level})<br>
                         <b>Assigned Volunteer:</b> {assigned_volunteer}<br>
                         <b>Assigned Vehicle:</b> {assigned_vehicle}<br>
-                        <b>Assigned Haven / Hospital:</b> {assigned_hospital}<br><br>
+                        <b>Assigned Hospital Partner:</b> {assigned_hospital}<br><br>
                         {case["analysis"]}
                     </div>''', unsafe_allow_html=True)
                 else:
@@ -441,10 +462,20 @@ else:
                 st.write(f"**📍 Landmark:** {case['address']}")
                 st.write(f"**🧑‍🤝‍🧑 Assigned Volunteer:** {case.get('volunteer', 'N/A')}")
                 st.write(f"**🚑 Assigned Vehicle:** {case.get('vehicle', 'N/A')}")
-                st.write(f"**🏥 Assigned Haven:** {case.get('hospital', 'N/A')}")
+                st.write(f"**🏥 Assigned Hospital Partner:** {case.get('hospital', 'N/A')}")
                 st.markdown(f"**🤖 AI Triage Assessment:**\n\n{case['analysis']}")
             with col_b:
-                st.markdown(f'<div class="status-pill">{case["status"]}</div>', unsafe_allow_html=True)
+                st.markdown(f'''
+                    <div class="status-pill">
+                        <span class="live-pulse"></span>{case["status"]}
+                    </div>
+                ''', unsafe_allow_html=True)
+            
+            # Interactive Map preview for this case's Hub location
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.write(f"**🗺️ Hub Operations Map ({case['city']}):**")
+            map_df = pd.DataFrame({'lat': [case['lat']], 'lon': [case['lng']]})
+            st.map(map_df, zoom=11, use_container_width=True)
 
 # Footer
 st.markdown("""
