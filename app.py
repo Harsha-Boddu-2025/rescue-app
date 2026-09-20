@@ -179,11 +179,17 @@ CITY_COORDS = {
     "Vizianagaram": {"lat": 18.1124, "lng": 83.4157}
 }
 
-# Initialize Agents safely
+# Initialize Agents safely with exception traceback
 @st.cache_resource
 def init_agents():
     if AGENTS_AVAILABLE:
-        return ConditionAgent(), PriorityAgent(), ResourceFinderAgent(), CoordinatorAgent()
+        try:
+            return ConditionAgent(), PriorityAgent(), ResourceFinderAgent(), CoordinatorAgent()
+        except Exception as e:
+            st.error(f"❌ Agent Initialization Exception: {str(e)}")
+            return None, None, None, None
+    else:
+        st.error(f"❌ Import Error: {locals().get('IMPORT_ERROR_MSG', 'Modules not found')}")
     return None, None, None, None
 
 condition_agent, priority_agent, resource_finder, coordinator_agent = init_agents()
@@ -243,7 +249,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
     elif not AGENTS_AVAILABLE:
         st.error(f"⚠️ Backend agent modules could not be imported: {locals().get('IMPORT_ERROR_MSG', 'Unknown error')}")
     elif not condition_agent:
-        st.error("⚠️ Condition Agent failed to initialize.")
+        st.error("⚠️ Condition Agent failed to initialize. Check backend initializers.")
     else:
         with st.status("🤖 Running Multi-Agent Rescue Pipeline...", expanded=True) as status:
             try:
