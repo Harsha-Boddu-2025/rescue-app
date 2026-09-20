@@ -1,10 +1,11 @@
 import sys
 from pathlib import Path
 
-# Automatically fix module path so 'agents' and 'database' import correctly
+# Automatically add the 'backend' folder to system path for package imports
 current_dir = Path(__file__).resolve().parent
-if str(current_dir) not in sys.path:
-    sys.path.append(str(current_dir))
+backend_dir = current_dir / "backend"
+if str(backend_dir) not in sys.path:
+    sys.path.append(str(backend_dir))
 
 import streamlit as st
 import os
