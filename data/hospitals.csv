@@ -2,15 +2,15 @@ id,name,city,latitude,longitude,phone,specializations,available_beds,emergency_2
 1,Seven Oaks Pet Hospital 24/7 Multi-Speciality,Hyderabad,17.4348,78.4011,8367700772,"dog;cat;bird;CT-scan;cancer-detection;surgery",25,true,24/7
 2,Mr.VET Animal Hospital,Hyderabad,17.4475,78.3614,9676755544,"dog;cat;neuro-surgery;orthopedic;ICU;blood-transfusion",15,true,24/7
 3,Govt. Super Speciality Veterinary Hospital,Hyderabad,17.3992,78.4876,914023222736,"dog;cat;bird;soft-tissue-surgery;general-care",30,false,"8:00 AM - 1:00 PM, 2:00 PM - 8:00 PM"
-4,Government Veternary Hospital,Rajahmundry,17.009631,81.774311,9440211223,"dog;cat;birds;wild-animals",10,false,"9:00 AM - 1:00 PM, 2:00 PM - 4:00 PM"
-5,Godavari Pet Clinic,Rajahmundry,17.234406,81.811286,8297077670,"dog;cat;small-animals;vaccinations;deworming;grooming;soft tissue surgeries",15,false,"9:00 AM - 1:00 PM, 4:00 PM - 8:00 PM"
-6,Paws N Claws - The Animal Care Clinic,Rajahmundry,17.010273,81.800257,9440128689,"dog;cat;bird;rabbit;guinea_pig;turtle;reptile;exotic_animals;wild_animals",20,false,"8:00 AM-9 PM"
-7,SVVU Super Speciality Veterinary Hospital,Visakhapatnam,17.705,83.308912,706679,"dog;cat;large-animals;surgery;x-rays",20,false,"9:00 AM-10 PM"
-8,Pets Avenue Animal Hospital & Surgical Centre,Visakhapatnam,17.7425,83.31248,8074168690,"dog;cat;surgery",15,false,"9:00 AM - 1:00 PM, 2:00 PM - 4:00 PM"
-9,Visakha Society for Protection and Care of Animals (VSPCA),Visakhapatnam,17.838,83.358912,716124,"dog;cat;bird;large-animals;wildlife;sterilization;vaccination;ambulance",50,true,24/7
-10,Small Animal Hospital,Kolkata,22.5222,88.348698,30126628,"dog;cat;bird;CT-scan;MRI;dialysis;ICU;ventilator;surgery",30,true,24/7
-11,TSVH (The Seattle Veterinary Hospital),Kolkata,22.5074,88.361199,9903921161,"dog;cat;rabbit;exotics;neuro-surgery;ICU;pathology",20,true,24/7
-12,WB State Veterinary Hospital (Behala),Kolkata,22.4963,88.314233,24781752,"dog;cat;subsidized-consultation;vaccination;general-surgery",40,false,"9:00 AM - 3:30 PM"
-13,Government Veterinary Hospital,Vizianagaram,18.11,83.4123456789,301,"dog;cat;large-animals;vaccination",30,true,"9:00 AM-10 PM"
-14,Government of Andhra Pradesh Regional Veterinary Hospital,Vizianagaram,18.12,83.4112345678,912,"dog;cat;large-animals;vaccination",20,false,24/7
-15,Dharma Sastha Vet n Pet Hospital,Vizianagaram,18.105,83.4151234567,123,"dog;cat;emergency",50,true,24/7
+4,Government Veternary Hospital,Rajahmundry,17.0096,81.7743,9440211223,"dog;cat;birds;wild-animals",10,false,"9:00 AM - 1:00 PM, 2:00 PM - 4:00 PM"
+5,Godavari Pet Clinic,Rajahmundry,17.2344,81.8112,8297077670,"dog;cat;small-animals;vaccinations;deworming;grooming;soft tissue surgeries",15,false,"9:00 AM - 1:00 PM, 4:00 PM - 8:00 PM"
+6,Paws N Claws - The Animal Care Clinic,Rajahmundry,17.0102,81.8002,9440128689,"dog;cat;bird;rabbit;guinea_pig;turtle;reptile;exotic_animals;wild_animals",20,false,"8:00 AM-9 PM"
+7,SVVU Super Speciality Veterinary Hospital,Visakhapatnam,17.7050,83.3000,706679,"dog;cat;large-animals;surgery;x-rays",20,false,"9:00 AM-10 PM"
+8,Pets Avenue Animal Hospital & Surgical Centre,Visakhapatnam,17.7425,83.3124,8074168690,"dog;cat;surgery",15,false,"9:00 AM - 1:00 PM, 2:00 PM - 4:00 PM"
+9,Visakha Society for Protection and Care of Animals (VSPCA),Visakhapatnam,17.8380,83.3500,716124,"dog;cat;bird;large-animals;wildlife;sterilization;vaccination;ambulance",50,true,24/7
+10,Small Animal Hospital,Kolkata,22.5222,88.3486,30126628,"dog;cat;bird;CT-scan;MRI;dialysis;ICU;ventilator;surgery",30,true,24/7
+11,TSVH (The Seattle Veterinary Hospital),Kolkata,22.5074,88.3611,9903921161,"dog;cat;rabbit;exotics;neuro-surgery;ICU;pathology",20,true,24/7
+12,WB State Veterinary Hospital (Behala),Kolkata,22.4963,88.3142,24781752,"dog;cat;subsidized-consultation;vaccination;general-surgery",40,false,"9:00 AM - 3:30 PM"
+13,Government Veterinary Hospital,Vizianagaram,18.1180,83.4000,301,"dog;cat;large-animals;vaccination",30,true,"9:00 AM-10 PM"
+14,Government of Andhra Pradesh Regional Veterinary Hospital,Vizianagaram,18.1283,83.4112,912,"dog;cat;large-animals;vaccination",20,false,24/7
+15,Dharma Sastha Vet n Pet Hospital,Vizianagaram,18.1050,83.4151,123,"dog;cat;emergency",50,true,24/7
