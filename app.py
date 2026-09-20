@@ -246,7 +246,7 @@ CITY_SUBLOCATIONS = {
 
 # Google Sheet Sync Helper with your deployed Web App URL
 def sync_to_google_sheet(case_data):
-    web_app_url = "https://script.google.com/macros/s/AKfycbznTlJCMXt6JkuXyHbKMIcKDOYRpLIxDgIEdAY-s0ZAdRBJ0nbGJYCA_7qchB-BqPr8/exec"
+    web_app_url = "https://script.google.com/macros/s/AKfycbwMZ9_TFYUWIy7r75EOZgj7PxII2LsNui-f69BVmUma-nO2Y-R7_gGyeN4JBrLONM89/exec""
     try:
         response = requests.post(web_app_url, json=case_data, timeout=5)
         return response.status_code == 200
