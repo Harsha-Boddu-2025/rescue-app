@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 import pandas as pd
+import pydeck as pdk
+import requests
 
 # Force Python to look inside the 'backend' folder first for package imports
 current_dir = Path(__file__).resolve().parent
@@ -35,7 +37,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Modern, Premium Aesthetics, Pulsing Indicator, & High Contrast Readability
+# Custom CSS for Modern, Premium Aesthetics & High Contrast Readability
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -59,7 +61,6 @@ st.markdown("""
         display: none;
     }
 
-    /* Fixed High Contrast Title Header */
     h1 {
         color: #f8fafc !important;
         text-align: center;
@@ -70,7 +71,6 @@ st.markdown("""
         text-shadow: 0 4px 25px rgba(129, 140, 248, 0.6);
     }
 
-    /* Fix Subheaders */
     h2, h3, .stMarkdown h3, [data-testid="stSubheader"] {
         color: #f8fafc !important;
         font-weight: 600 !important;
@@ -95,7 +95,7 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    .stTextInput input, .stSelectbox select, .stTextArea textarea {
+    .stTextInput input, .stSelectbox select, .stTextArea textarea, .stTimeInput input {
         background: rgba(15, 23, 42, 0.6) !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
         color: #ffffff !important;
@@ -165,7 +165,6 @@ st.markdown("""
         margin-top: 5px;
     }
 
-    /* Live Pulsing Status Indicator */
     @keyframes pulse-glow {
         0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
         70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
@@ -194,7 +193,6 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* High Contrast Expander Content for Live Dashboard */
     div[data-testid="stExpanderDetails"], 
     div[data-testid="stExpanderDetails"] p, 
     div[data-testid="stExpanderDetails"] span, 
@@ -209,7 +207,6 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* High Contrast Text Inside Status Execution Widget */
     div[data-testid="stStatusWidget"],
     div[data-testid="stStatusWidget"] div,
     div[data-testid="stStatusWidget"] span {
@@ -218,14 +215,45 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Exact NGO Hub City Latitude & Longitude Mapping Database
-CITY_COORDS = {
-    "Hyderabad": {"lat": 17.3850, "lng": 78.4867},
-    "Rajahmundry": {"lat": 17.0005, "lng": 81.8040},
-    "Visakhapatnam": {"lat": 17.6868, "lng": 83.2185},
-    "Kolkata": {"lat": 22.5726, "lng": 88.3639},
-    "Vizianagaram": {"lat": 18.1124, "lng": 83.4157}
+# Granular Sub-Locations Database with Exact Coordinates
+CITY_SUBLOCATIONS = {
+    "Hyderabad": {
+        "Banjara Hills / Jubilee Hills": {"lat": 17.4348, "lng": 78.4011},
+        "Gachibowli / HITECH City": {"lat": 17.4475, "lng": 78.3614},
+        "Kachiguda / Secunderabad": {"lat": 17.3992, "lng": 78.4876}
+    },
+    "Rajahmundry": {
+        "Kotipally Bus Stand Area": {"lat": 17.0096, "lng": 81.7743},
+        "Danavaipeta Zone": {"lat": 17.2344, "lng": 81.8112},
+        "Rythu Bazaar Outskirt": {"lat": 17.0102, "lng": 81.8002}
+    },
+    "Visakhapatnam": {
+        "RK Beach Road": {"lat": 17.7050, "lng": 83.3000},
+        "MVP Colony": {"lat": 17.7425, "lng": 83.3124},
+        "Madhurawada Tech Zone": {"lat": 17.8380, "lng": 83.3500}
+    },
+    "Kolkata": {
+        "Park Street Zone": {"lat": 22.5222, "lng": 88.3486},
+        "Salt Lake Sector V": {"lat": 22.5074, "lng": 88.3611},
+        "Jadavpur University Area": {"lat": 22.4963, "lng": 88.3142}
+    },
+    "Vizianagaram": {
+        "Fort Area Central": {"lat": 18.1180, "lng": 83.4000},
+        "RTC Complex Zone": {"lat": 18.1280, "lng": 83.4100},
+        "By-pass Junction": {"lat": 18.1050, "lng": 83.4150}
+    }
 }
+
+# Google Sheet Sync Helper
+def sync_to_google_sheet(case_data):
+    web_app_url = "PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE"
+    if "PASTE_YOUR" in web_app_url:
+        return False
+    try:
+        response = requests.post(web_app_url, json=case_data, timeout=5)
+        return response.status_code == 200
+    except Exception:
+        return False
 
 # Initialize Agents safely with exception traceback
 @st.cache_resource
@@ -246,7 +274,7 @@ condition_agent, priority_agent, resource_finder, coordinator_agent = init_agent
 if "cases" not in st.session_state:
     st.session_state.cases = []
 
-# Header Section with House Emoji & Crisp White Title
+# Header Section
 st.markdown("<h1>🏡 Safe Havens</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>AI-Powered NGO Emergency Animal Rescue & Sanctuary Coordination Platform</p>", unsafe_allow_html=True)
 
@@ -284,13 +312,19 @@ with col2:
     ])
     city_name = selected_city_display.split(" ")[1]
     
-    address = st.text_area("Exact Location / Landmark", placeholder="e.g., Near Central Park gate, street #4", height=80)
+    available_sublocs = list(CITY_SUBLOCATIONS.get(city_name, {}).keys())
+    selected_subloc = st.selectbox("Sub-Location / Area", available_sublocs)
+    
+    custom_landmark = st.text_input("Custom Landmark / Street (Optional)", placeholder="e.g., Near Pillar #42")
+    incident_time = st.time_input("Incident Time", value=datetime.now().time())
+    
+    address = f"{custom_landmark}, {selected_subloc}" if custom_landmark else selected_subloc
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Action button
 st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=True):
-    if not all([name, phone, email, address, temp_img_path]):
+    if not all([name, phone, email, temp_img_path]):
         st.error("⚠️ Please fill out all required fields and upload a photo.")
     elif not os.getenv("GEMINI_API_KEY"):
         st.error("⚠️ GEMINI_API_KEY is missing. Please add it to your environment secrets.")
@@ -302,7 +336,11 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
         with st.status("🤖 Running Multi-Agent Rescue Pipeline...", expanded=True) as status:
             try:
                 case_id = f"C-{len(st.session_state.cases) + 1}"
-                case_meta = {'city': city_name, 'street_address': address}
+                case_meta = {
+                    'city': city_name, 
+                    'street_address': address,
+                    'incident_time': incident_time.strftime("%H:%M")
+                }
 
                 # Step 1: Condition Agent
                 st.write("🔍 **[1/4] Condition Agent**: Analyzing animal species & injury via Gemini Vision...")
@@ -321,14 +359,14 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 score = priority_result.get('priority_score', 75)
                 time.sleep(0.3)
 
-                # Step 3: Resource Finder Agent (Haversine Geo-Matching with CSVs)
-                st.write("📍 **[3/4] Resource Finder Agent**: Querying CSV datasets via Haversine distance & operating hours...")
-                coords = CITY_COORDS.get(city_name, {"lat": 17.3850, "lng": 78.4867})
+                # Step 3: Resource Finder Agent
+                st.write(f"📍 **[3/4] Resource Finder Agent**: Querying local resources for {incident_time.strftime('%I:%M %p')} dispatch...")
+                subloc_coords = CITY_SUBLOCATIONS.get(city_name, {}).get(selected_subloc, {"lat": 17.3850, "lng": 78.4867})
                 
                 if is_valid_animal and severity_level != "N/A":
                     resource_result = resource_finder.match_resources(
-                        latitude=coords["lat"],
-                        longitude=coords["lng"],
+                        latitude=subloc_coords["lat"],
+                        longitude=subloc_coords["lng"],
                         animal_species=condition_result.get('species', 'dog'),
                         injury_severity=severity_level
                     )
@@ -356,7 +394,6 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     mission_id = "ABSTAINED-00"
                     status.update(label="⚠️ Abstention Triggered: No animal detected. Rescue dispatch skipped.", state="error", expanded=False)
 
-                # Format Assigned Resource Strings for Display
                 v_data = resource_result.get('volunteer')
                 veh_data = resource_result.get('vehicle')
                 h_data = resource_result.get('hospital')
@@ -365,7 +402,9 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 assigned_vehicle = f"{v_data.get('type', 'Ambulance')} - Reg: {veh_data['registration']} ({veh_data['distance']} km away)" if veh_data else "None"
                 assigned_hospital = f"{h_data['name']} ({h_data['effective_distance']} km away, Beds: {h_data['available_beds']})" if h_data else "None"
 
-                # Save case data to session state
+                hosp_lat = h_data.get('latitude', subloc_coords['lat'] + 0.05) if h_data else subloc_coords['lat'] + 0.05
+                hosp_lng = h_data.get('longitude', subloc_coords['lng'] + 0.05) if h_data else subloc_coords['lng'] + 0.05
+
                 case = {
                     "id": len(st.session_state.cases) + 1,
                     "mission_id": mission_id,
@@ -373,20 +412,25 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                     "phone": phone,
                     "email": email,
                     "city": city_name,
+                    "subloc": selected_subloc,
                     "address": address,
-                    "lat": coords["lat"],
-                    "lng": coords["lng"],
+                    "time": incident_time.strftime("%I:%M %p"),
+                    "lat": subloc_coords["lat"],
+                    "lng": subloc_coords["lng"],
+                    "hosp_lat": hosp_lat,
+                    "hosp_lng": hosp_lng,
                     "analysis": f"**Species:** {condition_result.get('species')}\n\n**Injury:** {condition_result.get('injury_type')}\n\n**Notes:** {condition_result.get('condition_notes')}",
                     "severity": severity_level,
                     "score": score,
                     "volunteer": assigned_volunteer,
                     "vehicle": assigned_vehicle,
                     "hospital": assigned_hospital,
-                    "date": datetime.now().strftime("%b %d, %Y - %H:%M"),
+                    "date": datetime.now().strftime("%b %d, %Y"),
                     "status": "Dispatched / Active" if (is_valid_animal and severity_level != "N/A") else "Abstained / Cancelled"
                 }
                 
                 st.session_state.cases.append(case)
+                sync_to_google_sheet(case)
                 
                 st.markdown("---")
                 st.subheader("📋 Final Rescue Summary")
@@ -394,6 +438,7 @@ if st.button("🚀 Run Multi-Agent Triage & Submit Report", use_container_width=
                 if is_valid_animal and severity_level != "N/A":
                     st.markdown(f'''<div class="analysis-box">
                         <b>Mission ID:</b> {mission_id} <br>
+                        <b>Incident Time:</b> {case["time"]} <br>
                         <b>Urgency Score:</b> {score}/100 ({severity_level})<br>
                         <b>Assigned Volunteer:</b> {assigned_volunteer}<br>
                         <b>Assigned Vehicle:</b> {assigned_vehicle}<br>
@@ -454,12 +499,13 @@ else:
     st.markdown("<br>", unsafe_allow_html=True)
     
     for case in reversed(st.session_state.cases):
-        with st.expander(f"📍 {case['city']} — {case['name']} ({case.get('mission_id', 'M-1001')}) [{case.get('severity', 'High')}]"):
+        with st.expander(f"📍 {case['city']} ({case['subloc']}) — {case['name']} ({case.get('mission_id', 'M-1001')}) [{case.get('severity', 'High')}]"):
             col_a, col_b = st.columns([2, 1])
             with col_a:
+                st.write(f"**⏰ Incident Time:** {case.get('time', 'N/A')}")
                 st.write(f"**📞 Phone:** {case['phone']}")
                 st.write(f"**📧 Email:** {case['email']}")
-                st.write(f"**📍 Landmark:** {case['address']}")
+                st.write(f"**📍 Landmark / Area:** {case['address']}")
                 st.write(f"**🧑‍🤝‍🧑 Assigned Volunteer:** {case.get('volunteer', 'N/A')}")
                 st.write(f"**🚑 Assigned Vehicle:** {case.get('vehicle', 'N/A')}")
                 st.write(f"**🏥 Assigned Hospital Partner:** {case.get('hospital', 'N/A')}")
@@ -471,11 +517,49 @@ else:
                     </div>
                 ''', unsafe_allow_html=True)
             
-            # Interactive Map preview for this case's Hub location
             st.markdown("<br>", unsafe_allow_html=True)
-            st.write(f"**🗺️ Hub Operations Map ({case['city']}):**")
-            map_df = pd.DataFrame({'lat': [case['lat']], 'lon': [case['lng']]})
-            st.map(map_df, zoom=11, use_container_width=True)
+            st.write(f"**🗺️ Live Dispatch Route ({case['subloc']} ➔ Hospital Partner):**")
+            
+            line_df = pd.DataFrame({
+                'start_lat': [case['lat']],
+                'start_lon': [case['lng']],
+                'end_lat': [case['hosp_lat']],
+                'end_lon': [case['hosp_lng']]
+            })
+            
+            points_df = pd.DataFrame({
+                'lat': [case['lat'], case['hosp_lat']],
+                'lon': [case['lng'], case['hosp_lng']],
+                'color': [[244, 63, 94], [129, 140, 248]],
+                'name': ['Incident Sub-Location', 'Assigned Hospital']
+            })
+
+            layer_line = pdk.Layer(
+                "LineLayer",
+                line_df,
+                get_source_position="[start_lon, start_lat]",
+                get_target_position="[end_lon, end_lat]",
+                get_color=[129, 140, 248, 220],
+                get_width=5,
+            )
+
+            layer_points = pdk.Layer(
+                "ScatterplotLayer",
+                points_df,
+                get_position="[lon, lat]",
+                get_color="color",
+                get_radius=400,
+                pickable=True,
+            )
+
+            view_state = pdk.ViewState(
+                latitude=case['lat'],
+                longitude=case['lng'],
+                zoom=12,
+                pitch=20,
+            )
+
+            st.pydeck_chart(pdk.Deck(layers=[layer_line, layer_points], initial_view_state=view_state, tooltip={"text": "{name}"}))
 
 # Footer
 st.markdown("""
